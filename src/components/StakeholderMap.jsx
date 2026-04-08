@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { filterByMarket, filterByCategory, getOrgColor, CATEGORY_FILTERS } from '../utils/marketFilter';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 const SERVICES = [
   { icon: '🎤', label: 'Stage & media presence', detail: 'Right event stages and publications your buyers actually read.' },
@@ -33,19 +34,19 @@ function getRelevanceReason(contact, intake) {
     return `Runs ${contact.company} — getting on their stage puts you in front of buyers and investors in ${loc}.`;
   }
   if (orgLower.includes('startup') || orgLower.includes('scaleup'))
-    return `${stage === 'Idea' || stage === 'Early' ? 'Peer founder' : 'Operator'} who has navigated the ${loc} market — warm intro source, co-sell, or reference customer.`;
+    return `${stage === 'Idea' || stage === 'Early' ? 'Peer founder' : 'Operator'} who has navigated the ${loc} market — warm intro source, co-sell, or reference.`;
   if (orgLower.includes('service'))
     return `Local operator in ${loc} — can accelerate setup, navigate regulations, and open doors faster than you could alone.`;
   if (orgLower.includes('media')) {
     if (goalLower.includes('media') || goalLower.includes('press') || goalLower.includes('brand'))
       return `${contact.company} reaches the audience you're targeting — the right coverage here drives inbound.`;
-    return `${contact.company} covers the ${loc} market your clients and investors read — strategic press contact.`;
+    return `${contact.company} covers the ${loc} market your clients and investors read.`;
   }
   return `Active in ${loc} — relevant to building your network for the goals you described.`;
 }
 
 function ContactCard({ contact, intake, isFirstLocked, showLockBanner }) {
-  const borderColor = getOrgColor(contact.orgType);
+  const color = getOrgColor(contact.orgType);
   const isPaid = contact.tier === 'paid';
   const relevance = getRelevanceReason(contact, intake);
 
@@ -53,65 +54,62 @@ function ContactCard({ contact, intake, isFirstLocked, showLockBanner }) {
     <>
       <div style={{
         background: '#fff',
-        border: '1px solid #e5e7eb',
-        borderRadius: '10px',
-        borderLeft: `3px solid ${borderColor}`,
+        border: '1px solid #e5e5e2',
+        borderLeft: `4px solid ${color}`,
+        borderRadius: '12px',
         padding: '16px 16px 0 14px',
         position: 'relative',
-        overflow: 'hidden',
       }}>
         {isPaid && (
-          <div style={{
-            position: 'absolute', top: '10px', right: '10px',
-            background: '#f3f4f6', borderRadius: '4px', padding: '2px 7px',
-            fontSize: '10px', fontWeight: '600', color: '#9ca3af',
-            textTransform: 'uppercase', letterSpacing: '0.5px',
-          }}>
-            Premium
-          </div>
+          <span style={{
+            position: 'absolute', top: '12px', right: '12px',
+            background: '#f5f5f2', borderRadius: '5px', padding: '2px 7px',
+            fontSize: '9px', fontWeight: '700', color: '#b8b8b2',
+            textTransform: 'uppercase', letterSpacing: '0.6px',
+          }}>Premium</span>
         )}
 
         <div style={{ marginBottom: '8px' }}>
-          <p style={{ fontSize: '14px', fontWeight: '600', color: '#1a1a1a', marginBottom: '2px' }}>{contact.name}</p>
-          <p style={{ fontSize: '13px', color: '#6b7280' }}>{contact.role}</p>
+          <p style={{ fontSize: '14px', fontWeight: '700', color: '#111110', marginBottom: '1px' }}>{contact.name}</p>
+          <p style={{ fontSize: '12px', color: '#78716c' }}>{contact.role}</p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
-          <div style={{
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
+          <span style={{
+            fontSize: '13px', fontWeight: '500', color: '#111110',
             filter: isPaid ? 'blur(5px)' : 'none',
             userSelect: isPaid ? 'none' : 'auto',
-            fontSize: '13px', fontWeight: '500', color: '#374151',
           }}>
-            {isPaid ? 'Acme Corporation Ltd' : contact.company}
-          </div>
+            {isPaid ? 'Acme Corp International' : contact.company}
+          </span>
           {!isPaid && contact.basedIn && (
             <span style={{
-              display: 'inline-flex', alignItems: 'center', gap: '4px',
-              padding: '2px 8px', background: '#f5f5f5', borderRadius: '20px',
-              fontSize: '11px', color: '#6b7280', fontWeight: '500',
+              fontSize: '11px', color: '#78716c',
+              background: '#f5f5f2', borderRadius: '20px',
+              padding: '2px 8px', fontWeight: '500',
             }}>
               📍 {contact.basedIn}
             </span>
           )}
           <span style={{
-            display: 'inline-flex', alignItems: 'center',
-            padding: '2px 8px', background: borderColor + '18',
-            borderRadius: '20px', fontSize: '11px', color: borderColor, fontWeight: '500',
+            fontSize: '11px', fontWeight: '600', color: color,
+            background: color + '14', borderRadius: '20px', padding: '2px 8px',
           }}>
             {contact.orgType || 'Other'}
           </span>
         </div>
 
-        <div style={{ borderTop: '1px solid #f3f4f6', padding: '10px 0 12px' }}>
+        <div style={{
+          borderTop: '1px solid #f0f0ec',
+          padding: '10px 0 12px',
+        }}>
           <span style={{
-            fontSize: '10px', fontWeight: '700', textTransform: 'uppercase',
-            letterSpacing: '0.6px', color: borderColor, marginRight: '6px',
-          }}>
-            Why relevant
-          </span>
+            fontSize: '9px', fontWeight: '800', textTransform: 'uppercase',
+            letterSpacing: '0.7px', color: color, marginRight: '6px',
+          }}>Why relevant</span>
           <span style={{
-            fontSize: '12px', color: isPaid ? 'transparent' : '#4b5563',
-            lineHeight: '1.5', filter: isPaid ? 'blur(4px)' : 'none',
+            fontSize: '12px', color: isPaid ? 'transparent' : '#78716c',
+            lineHeight: '1.55', filter: isPaid ? 'blur(4px)' : 'none',
             userSelect: isPaid ? 'none' : 'auto',
           }}>
             {relevance}
@@ -119,26 +117,27 @@ function ContactCard({ contact, intake, isFirstLocked, showLockBanner }) {
         </div>
 
         {!isPaid && contact.notes && (
-          <div style={{ borderTop: '1px solid #f3f4f6', padding: '10px 0 12px' }}>
-            <p style={{ fontSize: '12px', color: '#9ca3af', lineHeight: '1.5' }}>{contact.notes}</p>
+          <div style={{ borderTop: '1px solid #f0f0ec', padding: '10px 0 12px' }}>
+            <p style={{ fontSize: '11px', color: '#b8b8b2', lineHeight: '1.55' }}>{contact.notes}</p>
           </div>
         )}
       </div>
 
       {isFirstLocked && showLockBanner && (
         <div style={{
-          border: '1px solid #e5e7eb', borderLeft: '3px solid #7F77DD',
-          borderRadius: '10px', background: '#faf9ff', padding: '20px', textAlign: 'center',
+          border: '1px solid #e5e5e2', borderLeft: '4px solid #7F77DD',
+          borderRadius: '12px', background: '#faf9ff', padding: '20px', textAlign: 'center',
         }}>
-          <p style={{ fontSize: '14px', fontWeight: '600', color: '#1a1a1a', marginBottom: '6px' }}>
+          <p style={{ fontSize: '14px', fontWeight: '700', color: '#111110', marginBottom: '5px' }}>
             🔒 Unlock the full network
           </p>
-          <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px', lineHeight: '1.5' }}>
+          <p style={{ fontSize: '12px', color: '#78716c', marginBottom: '16px', lineHeight: '1.6' }}>
             Get warm intros from Slavena & Etien — briefed on your context before you meet.
           </p>
           <a href="https://calendly.com" target="_blank" rel="noreferrer" style={{
-            display: 'inline-block', padding: '10px 22px', background: '#7F77DD',
-            color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: '600', textDecoration: 'none',
+            display: 'inline-block', padding: '10px 22px',
+            background: '#7F77DD', color: '#fff',
+            borderRadius: '8px', fontSize: '13px', fontWeight: '600',
           }}>
             Book a call
           </a>
@@ -151,49 +150,41 @@ function ContactCard({ contact, intake, isFirstLocked, showLockBanner }) {
 function ServicesSidebar({ intake, onNext }) {
   return (
     <div style={{
-      border: '1px solid #e5e7eb',
-      borderRadius: '12px',
-      overflow: 'hidden',
-      position: 'sticky',
-      top: '20px',
-      alignSelf: 'flex-start',
+      border: '1px solid #e5e5e2', borderRadius: '14px', overflow: 'hidden',
+      position: 'sticky', top: '20px', alignSelf: 'flex-start',
+      background: '#fff',
     }}>
-      <div style={{ background: '#1a1a1a', padding: '14px 16px' }}>
-        <p style={{ fontSize: '13px', fontWeight: '700', color: '#fff', marginBottom: '3px' }}>
+      <div style={{ background: '#111110', padding: '16px 18px' }}>
+        <p style={{ fontSize: '13px', fontWeight: '700', color: '#fff', marginBottom: '4px' }}>
           How we get you in the room
         </p>
-        <p style={{ fontSize: '11px', color: '#9ca3af', lineHeight: '1.4' }}>
+        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', lineHeight: '1.45' }}>
           For {intake.stage}-stage companies entering {intake.market === 'All' ? 'new markets' : intake.market}
         </p>
       </div>
 
-      <div style={{ background: '#fff' }}>
-        {SERVICES.map((item, i) => (
-          <div key={i} style={{
-            display: 'flex', gap: '10px',
-            padding: '11px 14px',
-            borderBottom: i < SERVICES.length - 1 ? '1px solid #f3f4f6' : 'none',
-            alignItems: 'flex-start',
-          }}>
-            <span style={{ fontSize: '14px', marginTop: '1px', flexShrink: 0 }}>{item.icon}</span>
-            <div>
-              <p style={{ fontSize: '12px', fontWeight: '600', color: '#1a1a1a', marginBottom: '2px' }}>{item.label}</p>
-              <p style={{ fontSize: '11px', color: '#6b7280', lineHeight: '1.45' }}>{item.detail}</p>
-            </div>
+      {SERVICES.map((s, i) => (
+        <div key={i} style={{
+          display: 'flex', gap: '10px', padding: '12px 16px',
+          borderBottom: i < SERVICES.length - 1 ? '1px solid #f0f0ec' : 'none',
+          alignItems: 'flex-start',
+        }}>
+          <span style={{ fontSize: '14px', marginTop: '1px', flexShrink: 0 }}>{s.icon}</span>
+          <div>
+            <p style={{ fontSize: '12px', fontWeight: '600', color: '#111110', marginBottom: '2px' }}>{s.label}</p>
+            <p style={{ fontSize: '11px', color: '#78716c', lineHeight: '1.45' }}>{s.detail}</p>
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
 
-      <div style={{ background: '#f9f9f9', borderTop: '1px solid #e5e7eb', padding: '12px 14px' }}>
-        <button
-          onClick={onNext}
-          style={{
-            width: '100%', padding: '10px 16px',
-            background: '#1a1a1a', color: '#fff', border: 'none',
-            borderRadius: '8px', fontSize: '12px', fontWeight: '600', cursor: 'pointer',
-          }}
-          onMouseOver={(e) => { e.currentTarget.style.opacity = '0.85'; }}
-          onMouseOut={(e) => { e.currentTarget.style.opacity = '1'; }}
+      <div style={{ padding: '14px 16px', borderTop: '1px solid #f0f0ec', background: '#fafaf8' }}>
+        <button onClick={onNext} style={{
+          width: '100%', padding: '11px 16px',
+          background: '#111110', color: '#fff', border: 'none',
+          borderRadius: '8px', fontSize: '12px', fontWeight: '700', cursor: 'pointer',
+        }}
+          onMouseOver={e => { e.currentTarget.style.opacity = '0.82'; }}
+          onMouseOut={e => { e.currentTarget.style.opacity = '1'; }}
         >
           Work with us →
         </button>
@@ -202,87 +193,161 @@ function ServicesSidebar({ intake, onNext }) {
   );
 }
 
+// Mobile bottom sheet for services
+function MobileServicesSheet({ intake, onNext }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      {/* Overlay */}
+      {open && (
+        <div
+          onClick={() => setOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)',
+            zIndex: 40, backdropFilter: 'blur(2px)',
+          }}
+        />
+      )}
+
+      {/* Sheet */}
+      <div style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0,
+        zIndex: 50,
+        transform: open ? 'translateY(0)' : 'translateY(calc(100% - 64px))',
+        transition: 'transform 0.32s cubic-bezier(0.32, 0.72, 0, 1)',
+      }}>
+        {/* Handle bar / collapsed state */}
+        <div
+          onClick={() => setOpen(o => !o)}
+          style={{
+            background: '#111110',
+            padding: '0 20px',
+            height: '64px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            cursor: 'pointer',
+            borderRadius: '16px 16px 0 0',
+          }}
+        >
+          <div>
+            <p style={{ fontSize: '13px', fontWeight: '700', color: '#fff' }}>How we can help</p>
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>
+              {SERVICES.length} services · tap to {open ? 'close' : 'expand'}
+            </p>
+          </div>
+          <div style={{
+            width: '28px', height: '28px', borderRadius: '50%',
+            background: 'rgba(255,255,255,0.12)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '14px', color: '#fff',
+            transform: open ? 'rotate(180deg)' : 'rotate(0)',
+            transition: 'transform 0.25s',
+          }}>
+            ↑
+          </div>
+        </div>
+
+        {/* Expanded services list */}
+        <div style={{ background: '#fff', maxHeight: '60vh', overflowY: 'auto' }}>
+          {SERVICES.map((s, i) => (
+            <div key={i} style={{
+              display: 'flex', gap: '12px', padding: '14px 20px',
+              borderBottom: i < SERVICES.length - 1 ? '1px solid #f0f0ec' : 'none',
+              alignItems: 'flex-start',
+            }}>
+              <span style={{ fontSize: '16px', marginTop: '1px', flexShrink: 0 }}>{s.icon}</span>
+              <div>
+                <p style={{ fontSize: '13px', fontWeight: '600', color: '#111110', marginBottom: '2px' }}>{s.label}</p>
+                <p style={{ fontSize: '12px', color: '#78716c', lineHeight: '1.5' }}>{s.detail}</p>
+              </div>
+            </div>
+          ))}
+          <div style={{ padding: '16px 20px', borderTop: '1px solid #f0f0ec' }}>
+            <button onClick={onNext} style={{
+              width: '100%', padding: '13px 20px',
+              background: '#111110', color: '#fff', border: 'none',
+              borderRadius: '10px', fontSize: '14px', fontWeight: '700', cursor: 'pointer',
+            }}>
+              Work with us →
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function StakeholderMap({ intake, contacts, loading, onNext, onBack }) {
   const [category, setCategory] = useState('All');
+  const isMobile = useIsMobile();
 
   const marketFiltered = filterByMarket(contacts, intake.market);
   const categoryFiltered = filterByCategory(marketFiltered, category);
-
-  const sorted = [...categoryFiltered].sort((a, b) => {
-    if (a.tier === b.tier) return 0;
-    return a.tier === 'free' ? -1 : 1;
-  });
-
-  const firstPaidIndex = sorted.findIndex((c) => c.tier === 'paid');
+  const sorted = [...categoryFiltered].sort((a, b) => a.tier === b.tier ? 0 : a.tier === 'free' ? -1 : 1);
+  const firstPaidIndex = sorted.findIndex(c => c.tier === 'paid');
 
   return (
-    <div style={{ maxWidth: '960px', margin: '0 auto', padding: '40px 20px' }}>
+    <div style={{ padding: isMobile ? '28px 16px 120px' : '36px 24px 60px' }}>
       {/* Header */}
       <div style={{ marginBottom: '20px' }}>
-        <p style={{ fontSize: '12px', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '6px' }}>
+        <p style={{ fontSize: '11px', fontWeight: '700', color: '#78716c', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px' }}>
           Stakeholder Map
         </p>
-        <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#1a1a1a', letterSpacing: '-0.3px', marginBottom: '6px' }}>
+        <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#111110', letterSpacing: '-0.5px', marginBottom: '8px' }}>
           {intake.market === 'All' ? 'All markets' : intake.market} network
         </h2>
-        <p style={{ fontSize: '13px', color: '#6b7280' }}>
-          {loading ? 'Loading contacts...' : `${categoryFiltered.length} contact${categoryFiltered.length !== 1 ? 's' : ''} matched to your goal`}
+        <p style={{ fontSize: '13px', color: '#78716c' }}>
+          {loading ? 'Loading contacts…' : `${categoryFiltered.length} contact${categoryFiltered.length !== 1 ? 's' : ''} matched to your goal`}
         </p>
       </div>
 
       {/* Goal pill */}
       {intake.goal && (
         <div style={{
-          display: 'flex', alignItems: 'flex-start', gap: '8px',
-          background: '#f9f9f9', border: '1px solid #e5e7eb',
-          borderRadius: '8px', padding: '10px 12px', marginBottom: '16px',
+          display: 'flex', gap: '8px', alignItems: 'flex-start',
+          background: '#fff', border: '1px solid #e5e5e2',
+          borderRadius: '10px', padding: '10px 14px', marginBottom: '16px',
         }}>
-          <span style={{ fontSize: '12px', color: '#9ca3af', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap', paddingTop: '1px' }}>Your goal</span>
-          <span style={{ fontSize: '12px', color: '#4b5563', lineHeight: '1.5' }}>{intake.goal}</span>
+          <span style={{ fontSize: '10px', fontWeight: '700', color: '#b8b8b2', textTransform: 'uppercase', letterSpacing: '0.6px', whiteSpace: 'nowrap', paddingTop: '1px' }}>Goal</span>
+          <span style={{ fontSize: '12px', color: '#78716c', lineHeight: '1.5' }}>{intake.goal}</span>
         </div>
       )}
 
-      {/* Filter bar */}
+      {/* Category filters */}
       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '20px' }}>
-        {CATEGORY_FILTERS.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setCategory(cat)}
-            style={{
-              padding: '6px 12px',
-              border: `1.5px solid ${category === cat ? '#1a1a1a' : '#e5e7eb'}`,
-              borderRadius: '20px',
-              background: category === cat ? '#1a1a1a' : '#fff',
-              color: category === cat ? '#fff' : '#6b7280',
-              fontSize: '12px',
-              fontWeight: category === cat ? '600' : '400',
-              transition: 'all 0.15s',
-            }}
-          >
+        {CATEGORY_FILTERS.map(cat => (
+          <button key={cat} onClick={() => setCategory(cat)} style={{
+            padding: '6px 12px',
+            border: `1.5px solid ${category === cat ? '#111110' : '#e5e5e2'}`,
+            borderRadius: '20px',
+            background: category === cat ? '#111110' : '#fff',
+            color: category === cat ? '#fff' : '#78716c',
+            fontSize: '12px', fontWeight: category === cat ? '600' : '400',
+            transition: 'all 0.15s', cursor: 'pointer',
+          }}>
             {cat}
           </button>
         ))}
       </div>
 
-      {/* Two-column layout */}
+      {/* Two-col on desktop, single col on mobile */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(0, 1fr) 280px',
+        display: isMobile ? 'block' : 'grid',
+        gridTemplateColumns: '1fr 280px',
         gap: '20px',
         alignItems: 'start',
       }}>
         {/* Contact list */}
         <div>
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '60px 0', color: '#9ca3af', fontSize: '14px' }}>
-              Loading contacts from the network...
+            <div style={{ textAlign: 'center', padding: '60px 0', color: '#b8b8b2', fontSize: '14px' }}>
+              Loading contacts…
             </div>
           ) : sorted.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px 0', color: '#9ca3af', fontSize: '14px' }}>
+            <div style={{ textAlign: 'center', padding: '60px 0', color: '#b8b8b2', fontSize: '14px' }}>
               No contacts found for this filter.
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {sorted.map((contact, i) => (
                 <ContactCard
                   key={contact.id}
@@ -295,27 +360,22 @@ export default function StakeholderMap({ intake, contacts, loading, onNext, onBa
             </div>
           )}
 
-          <button
-            onClick={onBack}
-            style={{
-              marginTop: '20px',
-              padding: '10px 16px',
-              border: '1.5px solid #e5e7eb',
-              borderRadius: '8px',
-              background: '#fff',
-              color: '#9ca3af',
-              fontSize: '13px',
-              fontWeight: '500',
-              width: '100%',
-            }}
-          >
+          <button onClick={onBack} style={{
+            marginTop: '20px', width: '100%',
+            padding: '11px 16px', border: '1.5px solid #e5e5e2',
+            borderRadius: '10px', background: '#fff', color: '#b8b8b2',
+            fontSize: '13px', fontWeight: '500',
+          }}>
             ← Back to market guide
           </button>
         </div>
 
-        {/* Sticky sidebar */}
-        <ServicesSidebar intake={intake} onNext={onNext} />
+        {/* Desktop sidebar */}
+        {!isMobile && <ServicesSidebar intake={intake} onNext={onNext} />}
       </div>
+
+      {/* Mobile bottom sheet */}
+      {isMobile && <MobileServicesSheet intake={intake} onNext={onNext} />}
     </div>
   );
 }
