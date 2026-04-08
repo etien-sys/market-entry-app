@@ -1,9 +1,59 @@
 import { useState } from 'react';
 import { filterByMarket, filterByCategory, getOrgColor, CATEGORY_FILTERS } from '../utils/marketFilter';
 
-function ContactCard({ contact, isFirstLocked, showLockBanner }) {
+function getRelevanceReason(contact, intake) {
+  const { stage, goal } = intake;
+  const orgLower = (contact.orgType || '').toLowerCase();
+  const roleLower = (contact.role || '').toLowerCase();
+  const goalLower = (goal || '').toLowerCase();
+  const loc = contact.basedIn || 'the region';
+
+  if (orgLower.includes('investor')) {
+    if (stage === 'Idea' || stage === 'Early') {
+      return `Early-stage investor active in ${loc} — relevant if you're raising your first round.`;
+    }
+    if (stage === 'Growth') {
+      return `Growth-stage investor in ${loc} — can back your expansion with capital and connections.`;
+    }
+    return `Investor with a ${loc} portfolio — potential lead or co-investor for your round.`;
+  }
+
+  if (orgLower.includes('enterprise')) {
+    if (goalLower.includes('sales') || goalLower.includes('client') || goalLower.includes('customer') || goalLower.includes('revenue')) {
+      return `${contact.role} at a target enterprise — a direct path to your first ${loc} client.`;
+    }
+    return `Senior buyer at an enterprise in ${loc} — potential client, pilot partner, or reference.`;
+  }
+
+  if (orgLower.includes('events')) {
+    if (roleLower.includes('partner') || roleLower.includes('sponsor')) {
+      return `Controls speaking slots and sponsorship at ${contact.company} — one of the key deal-making events in ${loc}.`;
+    }
+    return `Runs ${contact.company} — getting on their stage puts you in front of buyers and investors in ${loc}.`;
+  }
+
+  if (orgLower.includes('startup') || orgLower.includes('scaleup')) {
+    return `${stage === 'Idea' || stage === 'Early' ? 'Peer founder' : 'Operator'} who has navigated the ${loc} market — warm intro source, co-sell, or reference customer.`;
+  }
+
+  if (orgLower.includes('service')) {
+    return `Local operator in ${loc} — can accelerate setup, navigate regulations, and open doors faster than you could alone.`;
+  }
+
+  if (orgLower.includes('media')) {
+    if (goalLower.includes('media') || goalLower.includes('press') || goalLower.includes('brand')) {
+      return `${contact.company} reaches the audience you're targeting — the right coverage here drives inbound.`;
+    }
+    return `${contact.company} covers the ${loc} market your clients and investors read — strategic press contact.`;
+  }
+
+  return `Active in ${loc} — relevant to building your network for the goals you described.`;
+}
+
+function ContactCard({ contact, intake, isFirstLocked, showLockBanner }) {
   const borderColor = getOrgColor(contact.orgType);
   const isPaid = contact.tier === 'paid';
+  const relevance = getRelevanceReason(contact, intake);
 
   return (
     <>
@@ -12,7 +62,7 @@ function ContactCard({ contact, isFirstLocked, showLockBanner }) {
         border: '1px solid #e5e7eb',
         borderRadius: '10px',
         borderLeft: `3px solid ${borderColor}`,
-        padding: '16px 16px 16px 14px',
+        padding: '16px 16px 0 14px',
         position: 'relative',
         overflow: 'hidden',
       }}>
@@ -34,6 +84,7 @@ function ContactCard({ contact, isFirstLocked, showLockBanner }) {
           </div>
         )}
 
+        {/* Name + role */}
         <div style={{ marginBottom: '8px' }}>
           <p style={{ fontSize: '14px', fontWeight: '600', color: '#1a1a1a', marginBottom: '2px' }}>
             {contact.name}
@@ -41,7 +92,8 @@ function ContactCard({ contact, isFirstLocked, showLockBanner }) {
           <p style={{ fontSize: '13px', color: '#6b7280' }}>{contact.role}</p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        {/* Company + location + type badges */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
           <div style={{
             filter: isPaid ? 'blur(5px)' : 'none',
             userSelect: isPaid ? 'none' : 'auto',
@@ -82,17 +134,43 @@ function ContactCard({ contact, isFirstLocked, showLockBanner }) {
           </span>
         </div>
 
-        {!isPaid && contact.notes && (
-          <p style={{
-            marginTop: '10px',
-            fontSize: '12px',
-            color: '#9ca3af',
-            lineHeight: '1.5',
-            borderTop: '1px solid #f3f4f6',
-            paddingTop: '10px',
+        {/* Why relevant — shown for free; blurred teaser for paid */}
+        <div style={{
+          borderTop: '1px solid #f3f4f6',
+          padding: '10px 0 12px',
+          position: 'relative',
+        }}>
+          <span style={{
+            fontSize: '10px',
+            fontWeight: '700',
+            textTransform: 'uppercase',
+            letterSpacing: '0.6px',
+            color: borderColor,
+            marginRight: '6px',
           }}>
-            {contact.notes}
-          </p>
+            Why relevant
+          </span>
+          <span style={{
+            fontSize: '12px',
+            color: isPaid ? 'transparent' : '#4b5563',
+            lineHeight: '1.5',
+            filter: isPaid ? 'blur(4px)' : 'none',
+            userSelect: isPaid ? 'none' : 'auto',
+          }}>
+            {isPaid ? relevance : relevance}
+          </span>
+        </div>
+
+        {/* Notes (free only) */}
+        {!isPaid && contact.notes && (
+          <div style={{
+            borderTop: '1px solid #f3f4f6',
+            padding: '10px 0 12px',
+          }}>
+            <p style={{ fontSize: '12px', color: '#9ca3af', lineHeight: '1.5' }}>
+              {contact.notes}
+            </p>
+          </div>
         )}
       </div>
 
@@ -158,9 +236,28 @@ export default function StakeholderMap({ intake, contacts, loading, onNext, onBa
           {intake.market === 'All' ? 'All markets' : intake.market} network
         </h2>
         <p style={{ fontSize: '13px', color: '#6b7280' }}>
-          {loading ? 'Loading contacts...' : `${categoryFiltered.length} contact${categoryFiltered.length !== 1 ? 's' : ''} found`}
+          {loading
+            ? 'Loading contacts...'
+            : `${categoryFiltered.length} contact${categoryFiltered.length !== 1 ? 's' : ''} matched to your goal`}
         </p>
       </div>
+
+      {/* User goal context pill */}
+      {intake.goal && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '8px',
+          background: '#f9f9f9',
+          border: '1px solid #e5e7eb',
+          borderRadius: '8px',
+          padding: '10px 12px',
+          marginBottom: '16px',
+        }}>
+          <span style={{ fontSize: '12px', color: '#9ca3af', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap', paddingTop: '1px' }}>Your goal</span>
+          <span style={{ fontSize: '12px', color: '#4b5563', lineHeight: '1.5' }}>{intake.goal}</span>
+        </div>
+      )}
 
       {/* Category filter bar */}
       <div style={{
@@ -203,6 +300,7 @@ export default function StakeholderMap({ intake, contacts, loading, onNext, onBa
             <ContactCard
               key={contact.id}
               contact={contact}
+              intake={intake}
               isFirstLocked={i === firstPaidIndex}
               showLockBanner={firstPaidIndex !== -1}
             />
