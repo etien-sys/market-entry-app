@@ -15,8 +15,8 @@ export default function App() {
 
   useEffect(() => {
     fetchContacts()
-      .then((data) => { console.log('[Market Entry] Contacts:', data); setContacts(data); setLoading(false); })
-      .catch((err) => { console.error(err); setFetchError(err.message); setLoading(false); });
+      .then(data => { console.log('[Market Entry] Contacts:', data); setContacts(data); setLoading(false); })
+      .catch(err => { console.error(err); setFetchError(err.message); setLoading(false); });
   }, []);
 
   useEffect(() => {
@@ -24,36 +24,32 @@ export default function App() {
     if (saved) { try { setIntake(JSON.parse(saved)); } catch (_) {} }
   }, []);
 
-  // scroll to top on step change
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, [step]);
 
   function handleIntakeComplete(data) { setIntake(data); setStep(2); }
   function restart() { localStorage.removeItem('market-entry-intake'); setIntake(null); setStep(1); }
 
-  const isWide = step === 3;
-
   return (
-    <div style={{ minHeight: '100vh', background: '#f4f3ef' }}>
+    <div style={{ minHeight: '100vh', background: '#09090f' }}>
       <div style={{
-        maxWidth: isWide ? '1040px' : '600px',
+        maxWidth: step === 3 ? '1040px' : '600px',
         margin: '0 auto',
         minHeight: '100vh',
         transition: 'max-width 0.3s ease',
       }}>
-
         <StepIndicator currentStep={step} />
 
         {fetchError && (
           <div style={{
             margin: '12px 20px 0', padding: '10px 14px',
-            background: '#fff1f2', border: '1px solid #fecdd3',
-            borderRadius: '8px', fontSize: '12px', color: '#e11d48',
+            background: '#1a0a0e', border: '1px solid #3d1a22',
+            borderRadius: '8px', fontSize: '12px', color: '#f87171',
           }}>
-            Could not load contact data: {fetchError}
+            Could not load contacts: {fetchError}
           </div>
         )}
 
-        <div style={{ padding: '0 0 80px' }}>
+        <div style={{ paddingBottom: '80px' }}>
           {step === 1 && <IntakeForm onComplete={handleIntakeComplete} />}
           {step === 2 && intake && <MarketGuide intake={intake} onNext={() => setStep(3)} onBack={() => setStep(1)} />}
           {step === 3 && intake && <StakeholderMap intake={intake} contacts={contacts} loading={loading} onNext={() => setStep(4)} onBack={() => setStep(2)} />}

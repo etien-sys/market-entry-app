@@ -15,12 +15,12 @@ export function filterByMarket(contacts, market) {
 }
 
 export const ORG_TYPE_COLORS = {
-  Investor: '#7F77DD',
-  Enterprise: '#0D9488',
-  Events: '#D97706',
-  Startup: '#F06B6B',
-  'Service Provider': '#6B7280',
-  Media: '#2563EB',
+  Investor: '#9d94f0',
+  Enterprise: '#34d399',
+  Events: '#fbbf24',
+  Startup: '#f87171',
+  'Service Provider': '#94a3b8',
+  Media: '#60a5fa',
 };
 
 export function getOrgColor(orgType) {

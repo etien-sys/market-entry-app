@@ -2,8 +2,8 @@
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: #f4f3ef;
-  color: #111110;
+  background: #09090f;
+  color: #e8e8f0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-size: 14px;
@@ -14,3 +14,8 @@ body {
 button { cursor: pointer; font-family: inherit; }
 textarea, input, select { font-family: inherit; }
 a { text-decoration: none; }
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #111119; }
+::-webkit-scrollbar-thumb { background: #2a2a3e; border-radius: 3px; }

@@ -1,31 +1,23 @@
 const STEPS = ['Your Journey', 'Market Guide', 'Stakeholder Map', 'Work With Us'];
+const PURPLE = '#7c6fe0';
 
 export default function StepIndicator({ currentStep }) {
   return (
-    <div style={{
-      padding: '20px 24px 0',
-      maxWidth: '600px',
-      margin: '0 auto',
-    }}>
-      {/* Top bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0', marginBottom: '10px' }}>
+    <div style={{ padding: '24px 24px 0', maxWidth: '600px', margin: '0 auto' }}>
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
         {STEPS.map((_, i) => {
           const done = (i + 1) < currentStep;
           const active = (i + 1) === currentStep;
           return (
             <div key={i} style={{
-              flex: 1,
-              height: '3px',
-              background: done ? '#111110' : active ? '#111110' : '#e5e5e2',
-              borderRadius: '2px',
-              marginRight: i < STEPS.length - 1 ? '4px' : '0',
-              opacity: active ? 1 : done ? 1 : 0.4,
+              flex: 1, height: '2px', borderRadius: '2px',
+              background: done || active ? PURPLE : '#1e1e2e',
+              opacity: done ? 0.5 : 1,
+              transition: 'background 0.3s',
             }} />
           );
         })}
       </div>
-
-      {/* Labels row */}
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         {STEPS.map((label, i) => {
           const active = (i + 1) === currentStep;
@@ -34,9 +26,9 @@ export default function StepIndicator({ currentStep }) {
             <span key={i} style={{
               fontSize: '10px',
               fontWeight: active ? '700' : '400',
-              color: active ? '#111110' : done ? '#78716c' : '#b8b8b2',
-              letterSpacing: active ? '0.3px' : '0',
+              color: active ? '#e8e8f0' : done ? PURPLE : '#3a3a52',
               textTransform: 'uppercase',
+              letterSpacing: active ? '0.4px' : '0',
             }}>
               {done ? '✓ ' : ''}{label}
             </span>
