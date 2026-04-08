@@ -3,23 +3,71 @@ import { useState } from 'react';
 const MARKETS = ['UAE', 'Saudi Arabia', 'CEE', 'All'];
 const STAGES = ['Idea', 'Early', 'Growth', 'Scale'];
 
+function Field({ label, error, children }) {
+  return (
+    <div>
+      <label style={{
+        display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151',
+        marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px',
+      }}>
+        {label}
+      </label>
+      {children}
+      {error && <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '6px' }}>{error}</p>}
+    </div>
+  );
+}
+
+function TextArea({ value, onChange, placeholder, rows = 3, hasError }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <textarea
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      rows={rows}
+      style={{
+        width: '100%',
+        padding: '12px 14px',
+        border: `1.5px solid ${hasError ? '#ef4444' : focused ? '#1a1a1a' : '#e5e7eb'}`,
+        borderRadius: '8px',
+        fontSize: '14px',
+        lineHeight: '1.5',
+        resize: 'vertical',
+        outline: 'none',
+        color: '#1a1a1a',
+        background: '#fff',
+        transition: 'border-color 0.15s',
+      }}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+    />
+  );
+}
+
 export default function IntakeForm({ onComplete }) {
   const [market, setMarket] = useState('');
   const [goal, setGoal] = useState('');
+  const [companyIntro, setCompanyIntro] = useState('');
   const [stage, setStage] = useState('');
   const [errors, setErrors] = useState({});
+
+  function clearError(field) {
+    setErrors((e) => ({ ...e, [field]: null }));
+  }
 
   function handleSubmit(e) {
     e.preventDefault();
     const newErrors = {};
-    if (!market) newErrors.market = true;
-    if (!goal.trim()) newErrors.goal = true;
-    if (!stage) newErrors.stage = true;
+    if (!market) newErrors.market = 'Please select a market.';
+    if (!goal.trim()) newErrors.goal = 'Please describe your goal.';
+    if (!companyIntro.trim()) newErrors.companyIntro = 'Please tell us about your company.';
+    if (!stage) newErrors.stage = 'Please select your stage.';
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
-    const data = { market, goal: goal.trim(), stage };
+    const data = { market, goal: goal.trim(), companyIntro: companyIntro.trim(), stage };
     localStorage.setItem('market-entry-intake', JSON.stringify(data));
     onComplete(data);
   }
@@ -31,22 +79,20 @@ export default function IntakeForm({ onComplete }) {
           Market Entry Navigator
         </h1>
         <p style={{ fontSize: '15px', color: '#6b7280', lineHeight: '1.5' }}>
-          Tell us about your expansion goal — we'll map the right contacts and insights for you.
+          Tell us about your company and goal — we'll map the right steps, contacts, and intros for you.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+
         {/* Market */}
-        <div>
-          <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            Which market?
-          </label>
+        <Field label="Which market?" error={errors.market}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
             {MARKETS.map((m) => (
               <button
                 key={m}
                 type="button"
-                onClick={() => { setMarket(m); setErrors((e) => ({ ...e, market: false })); }}
+                onClick={() => { setMarket(m); clearError('market'); }}
                 style={{
                   padding: '12px 16px',
                   border: `1.5px solid ${market === m ? '#1a1a1a' : errors.market ? '#ef4444' : '#e5e7eb'}`,
@@ -63,49 +109,41 @@ export default function IntakeForm({ onComplete }) {
               </button>
             ))}
           </div>
-          {errors.market && <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '6px' }}>Please select a market.</p>}
-        </div>
+        </Field>
 
         {/* Goal */}
-        <div>
-          <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            What is your goal?
-          </label>
-          <textarea
+        <Field label="What is your goal?" error={errors.goal}>
+          <TextArea
             value={goal}
-            onChange={(e) => { setGoal(e.target.value); setErrors((er) => ({ ...er, goal: false })); }}
-            placeholder="e.g. Find investors in UAE, expand our enterprise sales, meet media partners..."
-            rows={3}
-            style={{
-              width: '100%',
-              padding: '12px 14px',
-              border: `1.5px solid ${errors.goal ? '#ef4444' : '#e5e7eb'}`,
-              borderRadius: '8px',
-              fontSize: '14px',
-              lineHeight: '1.5',
-              resize: 'vertical',
-              outline: 'none',
-              color: '#1a1a1a',
-              background: '#fff',
-              transition: 'border-color 0.15s',
-            }}
-            onFocus={(e) => { e.target.style.borderColor = '#1a1a1a'; }}
-            onBlur={(e) => { e.target.style.borderColor = errors.goal ? '#ef4444' : '#e5e7eb'; }}
+            onChange={(e) => { setGoal(e.target.value); clearError('goal'); }}
+            placeholder="e.g. Find our first 5 enterprise customers in UAE, raise a seed round from Gulf investors..."
+            rows={2}
+            hasError={!!errors.goal}
           />
-          {errors.goal && <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '6px' }}>Please describe your goal.</p>}
-        </div>
+        </Field>
+
+        {/* Company intro */}
+        <Field label="Tell us about your company" error={errors.companyIntro}>
+          <TextArea
+            value={companyIntro}
+            onChange={(e) => { setCompanyIntro(e.target.value); clearError('companyIntro'); }}
+            placeholder="e.g. We build autonomous drone software for logistics companies. Our customers are 3PLs and e-commerce operators. We're post-revenue with 3 paying clients in Europe."
+            rows={3}
+            hasError={!!errors.companyIntro}
+          />
+          <p style={{ fontSize: '11px', color: '#9ca3af', marginTop: '6px', lineHeight: '1.5' }}>
+            Used to personalise your market guide and for warm intro matchmaking — the more specific, the better.
+          </p>
+        </Field>
 
         {/* Stage */}
-        <div>
-          <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            What stage is your company?
-          </label>
+        <Field label="What stage is your company?" error={errors.stage}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
             {STAGES.map((s) => (
               <button
                 key={s}
                 type="button"
-                onClick={() => { setStage(s); setErrors((e) => ({ ...e, stage: false })); }}
+                onClick={() => { setStage(s); clearError('stage'); }}
                 style={{
                   padding: '12px 8px',
                   border: `1.5px solid ${stage === s ? '#1a1a1a' : errors.stage ? '#ef4444' : '#e5e7eb'}`,
@@ -122,8 +160,7 @@ export default function IntakeForm({ onComplete }) {
               </button>
             ))}
           </div>
-          {errors.stage && <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '6px' }}>Please select your stage.</p>}
-        </div>
+        </Field>
 
         <button
           type="submit"

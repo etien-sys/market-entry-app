@@ -1,132 +1,76 @@
-const MARKET_INSIGHTS = {
-  UAE: [
-    {
-      icon: '🏢',
-      heading: 'Free zone vs mainland',
-      body: 'Most foreign B2B companies set up in DIFC or ADGM — 100% foreign ownership, common law jurisdiction. Mainland requires a local sponsor but gives broader market access.',
-    },
-    {
-      icon: '🤝',
-      heading: 'Relationship-driven sales cycles',
-      body: 'Sales cycles are relationship-driven. A warm intro from a trusted intermediary cuts a 6-month cycle in half — cold outreach rarely converts.',
-    },
-    {
-      icon: '📅',
-      heading: 'Timing your market entry',
-      body: 'Avoid Ramadan for first meetings. Q4 (Oct–Dec) is the strongest season for deal-making in the UAE.',
-    },
-    {
-      icon: '💡',
-      heading: 'Government & enterprise buy cycles',
-      body: 'Government entities and large enterprises operate on fiscal cycles — budget approvals in Q1 mean decisions land in Q3–Q4. Plan your pipeline accordingly.',
-    },
-  ],
-  'Saudi Arabia': [
-    {
-      icon: '🏛️',
-      heading: 'Vision 2030 context',
-      body: 'Saudi Arabia is mid-transformation under Vision 2030. Most enterprise spending is tied to national programs — understand which pillar your product maps to.',
-    },
-    {
-      icon: '🤝',
-      heading: 'Local partnerships matter',
-      body: 'A local partner (Saudi national or entity) is not just legal scaffolding — it signals commitment and opens government doors that remain closed to foreign-only players.',
-    },
-    {
-      icon: '📅',
-      heading: 'Seasonal rhythms',
-      body: 'Ramadan significantly slows decision-making. The strongest deal windows are Feb–Mar and Sep–Nov. Summer heat also clears offices from June to August.',
-    },
-  ],
-  CEE: [
-    {
-      icon: '🌍',
-      heading: 'Diverse markets, one region',
-      body: 'CEE is not monolithic — Bulgaria, Romania, Greece, and Croatia each have distinct regulatory environments and buyer cultures. Segment your entry strategy market by market.',
-    },
-    {
-      icon: '💰',
-      heading: 'Strong startup ecosystems',
-      body: 'Sofia, Bucharest, and Zagreb are growing tech hubs with active VC communities and founder networks. Events and accelerators are the fastest paths to warm introductions.',
-    },
-    {
-      icon: '🏦',
-      heading: 'EU funding drives enterprise budgets',
-      body: 'Many enterprise buyers access EU structural funds and Horizon grants — positioning your solution within these funding frameworks accelerates procurement.',
-    },
-  ],
-  All: [
-    {
-      icon: '🌐',
-      heading: 'Multi-market entry strategy',
-      body: 'Expanding across multiple markets simultaneously requires a sequenced playbook. Identify your anchor market first, then leverage those credentials in adjacent markets.',
-    },
-    {
-      icon: '🤝',
-      heading: 'Network is your fastest path',
-      body: 'In every market, the fastest deals come through trusted introductions. Building your advisor network before entering a market cuts average sales cycles significantly.',
-    },
-    {
-      icon: '📋',
-      heading: 'Localise your positioning',
-      body: 'The same product needs different value framing per market. What resonates with a UAE enterprise buyer differs from a CEE investor or Saudi government entity.',
-    },
-  ],
-};
+import { buildSteps } from '../utils/guideGenerator';
 
-function InsightCard({ icon, heading, body }) {
+function StepCard({ number, icon, heading, body, borderColor }) {
   return (
     <div style={{
       background: '#fff',
       border: '1px solid #e5e7eb',
       borderRadius: '10px',
-      padding: '20px 20px 20px 16px',
-      borderLeft: '3px solid #1a1a1a',
+      borderLeft: `3px solid ${borderColor}`,
+      padding: '18px 18px 18px 16px',
       display: 'flex',
       gap: '14px',
       alignItems: 'flex-start',
     }}>
-      <div style={{
-        width: '36px',
-        height: '36px',
-        borderRadius: '8px',
-        background: '#f5f5f5',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '18px',
-        flexShrink: 0,
-      }}>
-        {icon}
+      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+        <div style={{
+          width: '32px', height: '32px', borderRadius: '50%',
+          background: '#f5f5f5',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '16px',
+        }}>
+          {icon}
+        </div>
+        <span style={{ fontSize: '10px', fontWeight: '700', color: '#d1d5db' }}>{number}</span>
       </div>
       <div>
-        <p style={{ fontSize: '14px', fontWeight: '600', color: '#1a1a1a', marginBottom: '6px' }}>{heading}</p>
-        <p style={{ fontSize: '13px', color: '#6b7280', lineHeight: '1.55' }}>{body}</p>
+        <p style={{ fontSize: '14px', fontWeight: '700', color: '#1a1a1a', marginBottom: '6px', lineHeight: '1.3' }}>
+          {heading}
+        </p>
+        <p style={{ fontSize: '13px', color: '#6b7280', lineHeight: '1.6' }}>{body}</p>
       </div>
     </div>
   );
 }
 
+const STEP_COLORS = ['#7F77DD', '#0D9488', '#D97706', '#F06B6B', '#2563EB'];
+
 export default function MarketGuide({ intake, onNext, onBack }) {
-  const insights = MARKET_INSIGHTS[intake.market] || MARKET_INSIGHTS['All'];
+  const steps = buildSteps(intake);
+  const marketLabel = intake.market === 'All' ? 'multiple markets' : intake.market;
+
+  // Derive a short title from the goal
+  const goalSnippet = intake.goal.length > 60 ? intake.goal.slice(0, 57) + '…' : intake.goal;
 
   return (
-    <div style={{ maxWidth: '560px', margin: '0 auto', padding: '40px 20px' }}>
+    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '40px 20px' }}>
       <div style={{ marginBottom: '28px' }}>
-        <p style={{ fontSize: '12px', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '6px' }}>
+        <p style={{ fontSize: '12px', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px' }}>
           Market Guide
         </p>
-        <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#1a1a1a', letterSpacing: '-0.3px', marginBottom: '6px' }}>
-          Entering {intake.market === 'All' ? 'multiple markets' : intake.market}
+        <h2 style={{ fontSize: '21px', fontWeight: '700', color: '#1a1a1a', letterSpacing: '-0.3px', lineHeight: '1.3', marginBottom: '8px' }}>
+          {steps.length} steps to enter {marketLabel}
         </h2>
-        <p style={{ fontSize: '13px', color: '#6b7280' }}>
-          Key insights for your {intake.stage}-stage company.
-        </p>
+        {/* Show their goal back to them */}
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: '6px',
+          background: '#f5f5f5', borderRadius: '6px', padding: '5px 10px',
+        }}>
+          <span style={{ fontSize: '11px', color: '#9ca3af', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Goal</span>
+          <span style={{ fontSize: '12px', color: '#4b5563' }}>{goalSnippet}</span>
+        </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '32px' }}>
-        {insights.map((insight, i) => (
-          <InsightCard key={i} {...insight} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '32px' }}>
+        {steps.map((step, i) => (
+          <StepCard
+            key={i}
+            number={`0${i + 1}`}
+            icon={step.icon}
+            heading={step.heading}
+            body={step.body}
+            borderColor={STEP_COLORS[i % STEP_COLORS.length]}
+          />
         ))}
       </div>
 
@@ -134,13 +78,9 @@ export default function MarketGuide({ intake, onNext, onBack }) {
         <button
           onClick={onBack}
           style={{
-            padding: '12px 20px',
-            border: '1.5px solid #e5e7eb',
-            borderRadius: '8px',
-            background: '#fff',
-            color: '#374151',
-            fontSize: '14px',
-            fontWeight: '500',
+            padding: '12px 20px', border: '1.5px solid #e5e7eb',
+            borderRadius: '8px', background: '#fff', color: '#374151',
+            fontSize: '14px', fontWeight: '500',
           }}
         >
           ← Back
@@ -148,17 +88,11 @@ export default function MarketGuide({ intake, onNext, onBack }) {
         <button
           onClick={onNext}
           style={{
-            flex: 1,
-            padding: '12px 24px',
-            background: '#1a1a1a',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: '600',
+            flex: 1, padding: '12px 24px', background: '#1a1a1a', color: '#fff',
+            border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600',
           }}
-          onMouseOver={(e) => { e.target.style.opacity = '0.85'; }}
-          onMouseOut={(e) => { e.target.style.opacity = '1'; }}
+          onMouseOver={(e) => { e.currentTarget.style.opacity = '0.85'; }}
+          onMouseOut={(e) => { e.currentTarget.style.opacity = '1'; }}
         >
           See your stakeholder map →
         </button>
