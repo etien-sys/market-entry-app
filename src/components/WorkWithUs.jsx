@@ -17,6 +17,24 @@ const SERVICES = [
     description:
       'We make personal intros to the right people in our network, briefed on your context before you meet.',
   },
+  {
+    icon: '📈',
+    title: 'Sales & marketing strategy',
+    description:
+      'We build your go-to-market motion for the market you\'re entering — positioning, ICP, messaging, and channel mix that fits the local buyer.',
+  },
+  {
+    icon: '⚙️',
+    title: 'RevOps',
+    description:
+      'Pipeline design, CRM setup, and revenue processes built to scale — so your team closes faster and loses less in the handoffs.',
+  },
+  {
+    icon: '✍️',
+    title: 'ContentOps',
+    description:
+      'A content engine that builds your authority in the new market — thought leadership, case studies, and distribution that generate inbound.',
+  },
 ];
 
 const ADVISORS = [
