@@ -308,39 +308,99 @@ export default function StakeholderMap({ intake, contacts, loading, onNext, onBa
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '12px' }}>
-        <button
-          onClick={onBack}
-          style={{
-            padding: '12px 20px',
-            border: '1.5px solid #e5e7eb',
-            borderRadius: '8px',
-            background: '#fff',
-            color: '#374151',
-            fontSize: '14px',
-            fontWeight: '500',
-          }}
-        >
-          ← Back
-        </button>
-        <button
-          onClick={onNext}
-          style={{
-            flex: 1,
-            padding: '12px 24px',
-            background: '#1a1a1a',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: '600',
-          }}
-          onMouseOver={(e) => { e.target.style.opacity = '0.85'; }}
-          onMouseOut={(e) => { e.target.style.opacity = '1'; }}
-        >
-          Work with us →
-        </button>
+      {/* How we can help panel */}
+      <div style={{
+        border: '1px solid #e5e7eb',
+        borderRadius: '12px',
+        overflow: 'hidden',
+        marginBottom: '16px',
+      }}>
+        <div style={{
+          background: '#1a1a1a',
+          padding: '16px 20px',
+        }}>
+          <p style={{ fontSize: '14px', fontWeight: '700', color: '#fff', marginBottom: '4px' }}>
+            Want to actually reach these people?
+          </p>
+          <p style={{ fontSize: '12px', color: '#9ca3af', lineHeight: '1.5' }}>
+            Slavena & Etien work with {intake.stage}-stage companies entering {intake.market === 'All' ? 'new markets' : intake.market}. Here's how:
+          </p>
+        </div>
+
+        <div style={{ background: '#fff' }}>
+          {[
+            {
+              icon: '🎤',
+              label: 'Stage & media presence',
+              detail: 'Get on the right event stages and into the publications your buyers read.',
+            },
+            {
+              icon: '🏛️',
+              label: 'Lead gen experiences',
+              detail: 'Curated rooms where you meet target clients and investors — no cold outreach.',
+            },
+            {
+              icon: '🔗',
+              label: 'Warm introductions',
+              detail: 'Personal intros to the right people above, briefed on your context first.',
+            },
+          ].map((item, i, arr) => (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                gap: '12px',
+                padding: '14px 20px',
+                borderBottom: i < arr.length - 1 ? '1px solid #f3f4f6' : 'none',
+                alignItems: 'flex-start',
+              }}
+            >
+              <span style={{ fontSize: '16px', marginTop: '1px', flexShrink: 0 }}>{item.icon}</span>
+              <div>
+                <p style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '2px' }}>{item.label}</p>
+                <p style={{ fontSize: '12px', color: '#6b7280', lineHeight: '1.5' }}>{item.detail}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ background: '#f9f9f9', borderTop: '1px solid #e5e7eb', padding: '14px 20px' }}>
+          <button
+            onClick={onNext}
+            style={{
+              width: '100%',
+              padding: '12px 24px',
+              background: '#1a1a1a',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.opacity = '0.85'; }}
+            onMouseOut={(e) => { e.currentTarget.style.opacity = '1'; }}
+          >
+            See how we work together →
+          </button>
+        </div>
       </div>
+
+      <button
+        onClick={onBack}
+        style={{
+          padding: '10px 16px',
+          border: '1.5px solid #e5e7eb',
+          borderRadius: '8px',
+          background: '#fff',
+          color: '#9ca3af',
+          fontSize: '13px',
+          fontWeight: '500',
+          width: '100%',
+        }}
+      >
+        ← Back to market guide
+      </button>
     </div>
   );
 }
