@@ -59,9 +59,9 @@ function getRelevanceReason(contact, intake) {
   return `Active in ${loc} — relevant to building your network for the goals you described.`;
 }
 
-function ContactCard({ contact, intake, isFirstLocked, showLockBanner }) {
+function ContactCard({ contact, intake, isFirstLocked, showLockBanner, forceVisible }) {
   const color = getOrgColor(contact.orgType);
-  const isPaid = contact.tier === 'paid';
+  const isPaid = contact.tier === 'paid' && !forceVisible; // first 5 always visible
   const relevance = getRelevanceReason(contact, intake);
 
   return (
@@ -277,10 +277,13 @@ export default function StakeholderMap({ intake, contacts, loading, onNext, onBa
   const [category, setCategory] = useState(() => detectCategoryFromGoal(intake.goal));
   const isMobile = useIsMobile();
 
+  const MIN_FREE = 5; // always show at least this many contacts
+
   const marketFiltered = filterByMarket(contacts, intake.market);
   const categoryFiltered = filterByCategory(marketFiltered, category);
+  // Sort free first, then paid — but first MIN_FREE are always unlocked regardless of tier
   const sorted = [...categoryFiltered].sort((a, b) => a.tier === b.tier ? 0 : a.tier === 'free' ? -1 : 1);
-  const firstPaidIndex = sorted.findIndex(c => c.tier === 'paid');
+  const lockBannerIndex = sorted.length > MIN_FREE ? MIN_FREE : -1; // banner after 5th card
 
   return (
     <div style={{ padding: isMobile ? '28px 16px 120px' : '40px 24px 60px' }}>
@@ -347,7 +350,9 @@ export default function StakeholderMap({ intake, contacts, loading, onNext, onBa
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {sorted.map((contact, i) => (
                 <ContactCard key={contact.id} contact={contact} intake={intake}
-                  isFirstLocked={i === firstPaidIndex} showLockBanner={firstPaidIndex !== -1} />
+                  forceVisible={i < MIN_FREE}
+                  isFirstLocked={i === lockBannerIndex}
+                  showLockBanner={lockBannerIndex !== -1} />
               ))}
             </div>
           )}

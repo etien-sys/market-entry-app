@@ -72,21 +72,11 @@ export default function IntakeForm({ onComplete }) {
     <div style={{ padding: '40px 24px 48px' }}>
       {/* Header */}
       <div style={{ marginBottom: '40px' }}>
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: '6px',
-          background: PURPLE_DIM, border: `1px solid ${PURPLE}30`,
-          borderRadius: '6px', padding: '4px 10px', marginBottom: '18px',
-        }}>
-          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: PURPLE }} />
-          <span style={{ fontSize: '10px', fontWeight: '700', color: PURPLE, textTransform: 'uppercase', letterSpacing: '1px' }}>
-            Market Entry Navigator
-          </span>
-        </div>
-        <h1 style={{ fontSize: '32px', fontWeight: '800', color: '#e8e8f0', letterSpacing: '-0.8px', lineHeight: '1.15', marginBottom: '12px' }}>
+        <h1 style={{ fontSize: '34px', fontWeight: '800', color: '#e8e8f0', letterSpacing: '-0.8px', lineHeight: '1.15', marginBottom: '10px' }}>
           Where are you going,<br />and why?
         </h1>
         <p style={{ fontSize: '14px', color: '#6b6b85', lineHeight: '1.7' }}>
-          Answer four questions — we'll map the right steps, contacts, and warm intros for your expansion.
+          Answer four questions — SETI maps the right steps, contacts, and warm intros for your expansion.
         </p>
       </div>
 

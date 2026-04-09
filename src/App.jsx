@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fetchContacts } from './utils/csvParser';
+import Background from './components/Background';
 import StepIndicator from './components/StepIndicator';
 import IntakeForm from './components/IntakeForm';
 import MarketGuide from './components/MarketGuide';
@@ -30,11 +31,13 @@ export default function App() {
   function restart() { localStorage.removeItem('market-entry-intake'); setIntake(null); setStep(1); }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#09090f' }}>
+    <div style={{ minHeight: '100vh', background: '#09090f', position: 'relative' }}>
+      <Background />
       <div style={{
         maxWidth: step === 3 ? '1040px' : '600px',
         margin: '0 auto',
         minHeight: '100vh',
+        position: 'relative', zIndex: 1,
         transition: 'max-width 0.3s ease',
       }}>
         <StepIndicator currentStep={step} />
