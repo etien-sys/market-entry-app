@@ -6,6 +6,7 @@ import IntakeForm from './components/IntakeForm';
 import MarketGuide from './components/MarketGuide';
 import StakeholderMap from './components/StakeholderMap';
 import WorkWithUs from './components/WorkWithUs';
+import Chatbot from './components/Chatbot';
 
 export default function App() {
   const [step, setStep] = useState(1);
@@ -59,6 +60,7 @@ export default function App() {
           {step === 4 && intake && <WorkWithUs intake={intake} onBack={() => setStep(3)} onRestart={restart} />}
         </div>
       </div>
+      {step > 1 && intake && <Chatbot intake={intake} contacts={contacts} />}
     </div>
   );
 }
