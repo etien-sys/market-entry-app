@@ -46,6 +46,8 @@ if goal:
     properties['Deal name'] = {'rich_text': [{'text': {'content': goal[:2000]}}]}
 if industry:
     properties['Industry'] = {'multi_select': [{'name': industry}]}
+if location:
+    properties[' Market'] = {'multi_select': [{'name': location}]}
 
 
 body = json.dumps({
