@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 const PURPLE = '#7c6fe0';
 const PURPLE_DIM = 'rgba(124,111,224,0.15)';
+const LEAD_ENDPOINT = import.meta.env.VITE_LEAD_ENDPOINT; // set in .env to enable submission
 
 const MARKETS = [
   { id: 'UAE', label: 'UAE', sub: 'Dubai · Abu Dhabi' },
@@ -22,6 +23,25 @@ function FieldLabel({ children }) {
     <p style={{ fontSize: '11px', fontWeight: '700', color: '#4a4a65', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>
       {children}
     </p>
+  );
+}
+
+function DarkInput({ value, onChange, placeholder, type = 'text', hasError }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <input
+      type={type} value={value} onChange={onChange} placeholder={placeholder}
+      style={{
+        width: '100%', padding: '13px 14px', boxSizing: 'border-box',
+        background: '#0d0d16',
+        border: `1.5px solid ${hasError ? '#f87171' : focused ? PURPLE : '#1e1e2e'}`,
+        borderRadius: '10px', fontSize: '14px', outline: 'none',
+        color: '#e8e8f0', caretColor: PURPLE,
+        transition: 'border-color 0.2s', fontFamily: 'inherit',
+      }}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+    />
   );
 }
 
@@ -51,20 +71,55 @@ export default function IntakeForm({ onComplete }) {
   const [goal, setGoal] = useState('');
   const [companyIntro, setCompanyIntro] = useState('');
   const [stage, setStage] = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [errors, setErrors] = useState({});
 
   function clearError(f) { setErrors(e => ({ ...e, [f]: null })); }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     const errs = {};
     if (!market) errs.market = true;
     if (!goal.trim()) errs.goal = true;
     if (!companyIntro.trim()) errs.companyIntro = true;
     if (!stage) errs.stage = true;
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = true;
     if (Object.keys(errs).length) { setErrors(errs); return; }
-    const data = { market, goal: goal.trim(), companyIntro: companyIntro.trim(), stage };
+
+    const data = {
+      market,
+      goal: goal.trim(),
+      companyIntro: companyIntro.trim(),
+      stage,
+      name: name.trim(),
+      email: email.trim(),
+      submittedAt: new Date().toISOString(),
+    };
+
     localStorage.setItem('market-entry-intake', JSON.stringify(data));
+
+    // Send to lead capture endpoint if configured
+    if (LEAD_ENDPOINT) {
+      try {
+        await fetch(LEAD_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: data.name || '(not provided)',
+            email: data.email || '(not provided)',
+            market: data.market,
+            stage: data.stage,
+            goal: data.goal,
+            company: data.companyIntro,
+            submittedAt: data.submittedAt,
+          }),
+        });
+      } catch (_) {
+        // Don't block the user if submission fails
+      }
+    }
+
     onComplete(data);
   }
 
@@ -148,6 +203,30 @@ export default function IntakeForm({ onComplete }) {
             })}
           </div>
           {errors.stage && <p style={{ fontSize: '12px', color: '#f87171', marginTop: '6px' }}>Please select your stage.</p>}
+        </div>
+
+        {/* Contact details */}
+        <div style={{ padding: '20px', background: '#0d0d16', borderRadius: '12px', border: '1px solid #1e1e2e' }}>
+          <FieldLabel>Stay in the loop</FieldLabel>
+          <p style={{ fontSize: '13px', color: '#4a4a65', marginBottom: '16px', lineHeight: '1.6' }}>
+            Leave your details and our team will reach out with personalised intros and market entry support.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <DarkInput
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="Your name"
+            />
+            <DarkInput
+              type="email"
+              value={email}
+              onChange={e => { setEmail(e.target.value); clearError('email'); }}
+              placeholder="Your email address"
+              hasError={!!errors.email}
+            />
+            {errors.email && <p style={{ fontSize: '12px', color: '#f87171', margin: '-4px 0 0' }}>Please enter a valid email address.</p>}
+          </div>
+          <p style={{ fontSize: '11px', color: '#2a2a3a', marginTop: '10px' }}>Optional — skip if you prefer to explore on your own.</p>
         </div>
 
         <button type="submit" style={{
