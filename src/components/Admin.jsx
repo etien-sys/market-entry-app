@@ -2,6 +2,39 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 
 const PURPLE = '#7c6fe0';
 const API_KEY_STORAGE = 'seti-admin-api-key';
+const BACKLOG_KEY = 'seti-gap-backlog';
+
+// Hardcoded warmth overrides — will be replaced by Notion "Connection" field once synced
+const WARMTH_MAP = {
+  'tech.eu': 'warm',
+  'handelsblatt': 'cold',
+};
+
+function getConnection(c) {
+  // Use Notion-synced field first
+  if (c.connection) return c.connection.toLowerCase();
+  // Fall back to hardcoded map
+  const key = (c.name || '').toLowerCase();
+  for (const [k, v] of Object.entries(WARMTH_MAP)) {
+    if (key.includes(k)) return v;
+  }
+  return null;
+}
+
+const WARMTH_STYLE = {
+  warm: { color: '#34d399', bg: '#14290a', border: '#34d39930' },
+  cold: { color: '#60a5fa', bg: '#0a1429', border: '#60a5fa30' },
+};
+
+function WarmthBadge({ value }) {
+  const s = WARMTH_STYLE[value];
+  if (!s) return null;
+  return (
+    <span style={{ fontSize: '10px', padding: '1px 7px', background: s.bg, border: `1px solid ${s.border}`, borderRadius: '10px', color: s.color, fontWeight: '700', letterSpacing: '0.3px' }}>
+      {value}
+    </span>
+  );
+}
 
 // ── Keyword filter (fast, no API needed) ──────────────────────────────────────
 
@@ -573,7 +606,7 @@ export default function Admin({ contacts, loading }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
               <tr style={{ background: '#111119', borderBottom: '2px solid #1e1e2e' }}>
-                {['Company', 'Org Type', 'Industry', 'Based In', 'Associated Contact', 'Website'].map(h => (
+                {['Company', 'Connection', 'Org Type', 'Industry', 'Based In', 'Contact', 'Introduced by', 'Website'].map(h => (
                   <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: '10px', fontWeight: '700', color: '#4a4a65', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }}>
                     {h}
                   </th>
@@ -581,26 +614,37 @@ export default function Admin({ contacts, loading }) {
               </tr>
             </thead>
             <tbody>
-              {results.slice(0, 300).map((c, i) => (
-                <tr key={c.id} style={{ borderBottom: '1px solid #0f0f1a', background: i % 2 === 0 ? 'transparent' : '#0a0a12' }}>
-                  <td style={{ padding: '9px 14px', color: '#e8e8f0', fontWeight: '500', whiteSpace: 'nowrap' }}>{c.name}</td>
-                  <td style={{ padding: '9px 14px', color: '#6b6b85', whiteSpace: 'nowrap' }}>{c.orgType}</td>
-                  <td style={{ padding: '9px 14px', color: '#6b6b85' }}>{c.industry}</td>
-                  <td style={{ padding: '9px 14px', color: '#6b6b85', whiteSpace: 'nowrap' }}>{c.basedIn}</td>
-                  <td style={{ padding: '9px 14px', maxWidth: '240px' }}>
-                    {c.contact && <ContactCell value={c.contact} />}
-                  </td>
-                  <td style={{ padding: '9px 14px' }}>
-                    {c.website && (
-                      <a href={c.website} target="_blank" rel="noreferrer"
-                        style={{ color: PURPLE, fontSize: '12px', textDecoration: 'none' }}
-                        onMouseOver={e => { e.currentTarget.style.textDecoration = 'underline'; }}
-                        onMouseOut={e => { e.currentTarget.style.textDecoration = 'none'; }}
-                      >{c.website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}</a>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {results.slice(0, 300).map((c, i) => {
+                const conn = getConnection(c);
+                return (
+                  <tr key={c.id} style={{ borderBottom: '1px solid #0f0f1a', background: i % 2 === 0 ? 'transparent' : '#0a0a12' }}>
+                    <td style={{ padding: '9px 14px', fontWeight: '500', whiteSpace: 'nowrap' }}>
+                      <span style={{ color: '#e8e8f0' }}>{c.name}</span>
+                    </td>
+                    <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>
+                      <WarmthBadge value={conn} />
+                    </td>
+                    <td style={{ padding: '9px 14px', color: '#6b6b85', whiteSpace: 'nowrap' }}>{c.orgType}</td>
+                    <td style={{ padding: '9px 14px', color: '#6b6b85' }}>{c.industry}</td>
+                    <td style={{ padding: '9px 14px', color: '#6b6b85', whiteSpace: 'nowrap' }}>{c.basedIn}</td>
+                    <td style={{ padding: '9px 14px', maxWidth: '220px' }}>
+                      {c.contact && <ContactCell value={c.contact} />}
+                    </td>
+                    <td style={{ padding: '9px 14px', color: '#6b6b85', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                      {c.owner || ''}
+                    </td>
+                    <td style={{ padding: '9px 14px' }}>
+                      {c.website && (
+                        <a href={c.website} target="_blank" rel="noreferrer"
+                          style={{ color: PURPLE, fontSize: '12px', textDecoration: 'none' }}
+                          onMouseOver={e => { e.currentTarget.style.textDecoration = 'underline'; }}
+                          onMouseOut={e => { e.currentTarget.style.textDecoration = 'none'; }}
+                        >{c.website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}</a>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 
@@ -613,6 +657,158 @@ export default function Admin({ contacts, loading }) {
           {results.length > 300 && (
             <div style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', color: '#3a3a52', borderTop: '1px solid #1e1e2e', background: '#0d0d16' }}>
               Showing 300 of {results.length.toLocaleString()} — use <strong style={{ color: '#4a4a65' }}>Export</strong> for the full list
+            </div>
+          )}
+        </div>
+      )}
+
+      <GapBacklog />
+    </div>
+  );
+}
+
+// ── Gap Backlog ────────────────────────────────────────────────────────────────
+
+const PRIORITY = ['high', 'medium', 'low'];
+const PRIORITY_STYLE = {
+  high:   { color: '#f87171', bg: '#1a0a0e', border: '#f8717130' },
+  medium: { color: '#fbbf24', bg: '#1a1400', border: '#fbbf2430' },
+  low:    { color: '#60a5fa', bg: '#0a1020', border: '#60a5fa30' },
+};
+
+function GapBacklog() {
+  const [items, setItems] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(BACKLOG_KEY) || '[]'); } catch { return []; }
+  });
+  const [desc, setDesc] = useState('');
+  const [priority, setPriority] = useState('high');
+  const [showDone, setShowDone] = useState(false);
+
+  function persist(next) {
+    setItems(next);
+    localStorage.setItem(BACKLOG_KEY, JSON.stringify(next));
+  }
+
+  function add() {
+    if (!desc.trim()) return;
+    persist([{ id: Date.now(), description: desc.trim(), priority, createdAt: new Date().toISOString().slice(0, 10), resolved: false }, ...items]);
+    setDesc('');
+  }
+
+  function resolve(id) { persist(items.map(i => i.id === id ? { ...i, resolved: true } : i)); }
+  function reopen(id)  { persist(items.map(i => i.id === id ? { ...i, resolved: false } : i)); }
+  function remove(id)  { persist(items.filter(i => i.id !== id)); }
+
+  function copyOpen() {
+    const text = items
+      .filter(i => !i.resolved)
+      .sort((a, b) => PRIORITY.indexOf(a.priority) - PRIORITY.indexOf(b.priority))
+      .map(i => `[${i.priority.toUpperCase()}] ${i.description}  (${i.createdAt})`)
+      .join('\n');
+    navigator.clipboard?.writeText(text);
+  }
+
+  const open = items.filter(i => !i.resolved);
+  const done = items.filter(i => i.resolved);
+
+  return (
+    <div style={{ marginTop: '56px', borderTop: '1px solid #1e1e2e', paddingTop: '32px' }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+        <div>
+          <p style={{ fontSize: '11px', fontWeight: '700', color: '#4a4a65', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: '4px' }}>
+            Relationship Gap Backlog
+          </p>
+          <p style={{ fontSize: '13px', color: '#4a4a65', margin: 0 }}>
+            Flag missing relationship groups so the team knows where to build next.
+          </p>
+        </div>
+        {open.length > 0 && (
+          <button onClick={copyOpen}
+            style={{ padding: '8px 14px', background: 'transparent', border: '1px solid #1e1e2e', borderRadius: '8px', fontSize: '12px', color: '#4a4a65', cursor: 'pointer' }}>
+            Copy list
+          </button>
+        )}
+      </div>
+
+      {/* Add form */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        <input
+          value={desc}
+          onChange={e => setDesc(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') add(); }}
+          placeholder='"Media contacts in the Middle East" · "Climate tech investors in CEE"'
+          style={{ flex: 1, minWidth: '240px', padding: '11px 14px', background: '#111119', border: '1px solid #1e1e2e', borderRadius: '10px', fontSize: '13px', color: '#e8e8f0', outline: 'none', fontFamily: 'inherit' }}
+        />
+        <select
+          value={priority}
+          onChange={e => setPriority(e.target.value)}
+          style={{ padding: '11px 12px', background: '#111119', border: '1px solid #1e1e2e', borderRadius: '10px', fontSize: '13px', color: PRIORITY_STYLE[priority].color, outline: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+        >
+          {PRIORITY.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)} priority</option>)}
+        </select>
+        <button
+          onClick={add}
+          disabled={!desc.trim()}
+          style={{ padding: '11px 20px', background: desc.trim() ? PURPLE : '#111119', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: '700', color: desc.trim() ? '#fff' : '#3a3a52', cursor: desc.trim() ? 'pointer' : 'default' }}
+        >
+          Add gap
+        </button>
+      </div>
+
+      {/* Open items */}
+      {open.length === 0 ? (
+        <p style={{ fontSize: '13px', color: '#2a2a3a', fontStyle: 'italic' }}>No gaps logged yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '20px' }}>
+          {PRIORITY.map(prio => open.filter(i => i.priority === prio).map(item => {
+            const s = PRIORITY_STYLE[item.priority];
+            return (
+              <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: '#0d0d16', border: `1px solid #1e1e2e`, borderRadius: '10px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '10px', padding: '2px 8px', background: s.bg, border: `1px solid ${s.border}`, borderRadius: '10px', color: s.color, fontWeight: '700', flexShrink: 0 }}>
+                  {item.priority}
+                </span>
+                <span style={{ flex: 1, fontSize: '13px', color: '#c8c8d8', minWidth: '160px' }}>{item.description}</span>
+                <span style={{ fontSize: '11px', color: '#3a3a52', flexShrink: 0 }}>{item.createdAt}</span>
+                <button onClick={() => resolve(item.id)}
+                  style={{ fontSize: '11px', color: '#34d399', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', flexShrink: 0 }}>
+                  ✓ Done
+                </button>
+                <button onClick={() => remove(item.id)}
+                  style={{ fontSize: '12px', color: '#3a3a52', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', flexShrink: 0 }}>
+                  ×
+                </button>
+              </div>
+            );
+          }))}
+        </div>
+      )}
+
+      {/* Resolved items */}
+      {done.length > 0 && (
+        <div>
+          <button onClick={() => setShowDone(s => !s)}
+            style={{ fontSize: '12px', color: '#3a3a52', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: '10px' }}>
+            {showDone ? '▾' : '▸'} Resolved ({done.length})
+          </button>
+          {showDone && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {done.map(item => (
+                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 14px', background: 'transparent', border: '1px solid #111119', borderRadius: '10px', opacity: 0.5 }}>
+                  <span style={{ fontSize: '10px', padding: '2px 8px', background: '#111119', borderRadius: '10px', color: '#3a3a52', fontWeight: '600' }}>{item.priority}</span>
+                  <span style={{ flex: 1, fontSize: '13px', color: '#4a4a65', textDecoration: 'line-through' }}>{item.description}</span>
+                  <span style={{ fontSize: '11px', color: '#2a2a3a' }}>{item.createdAt}</span>
+                  <button onClick={() => reopen(item.id)}
+                    style={{ fontSize: '11px', color: '#4a4a65', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px' }}>
+                    Reopen
+                  </button>
+                  <button onClick={() => remove(item.id)}
+                    style={{ fontSize: '12px', color: '#2a2a3a', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>
+                    ×
+                  </button>
+                </div>
+              ))}
             </div>
           )}
         </div>

@@ -10,9 +10,13 @@ if (!KEY) { console.error('Missing NOTION_API_KEY'); process.exit(1); }
 
 function extractText(prop) {
   if (!prop) return '';
-  if (prop.type === 'title') return prop.title.map(t => t.plain_text).join('');
-  if (prop.type === 'rich_text') return prop.rich_text.map(t => t.plain_text).join('');
-  if (prop.type === 'url') return prop.url || '';
+  if (prop.type === 'title')        return prop.title.map(t => t.plain_text).join('');
+  if (prop.type === 'rich_text')    return prop.rich_text.map(t => t.plain_text).join('');
+  if (prop.type === 'url')          return prop.url || '';
+  if (prop.type === 'email')        return prop.email || '';
+  if (prop.type === 'select')       return prop.select?.name || '';
+  if (prop.type === 'multi_select') return prop.multi_select.map(s => s.name).join(', ');
+  if (prop.type === 'people')       return prop.people.map(p => p.name || '').filter(Boolean).join(', ');
   return '';
 }
 
@@ -45,6 +49,16 @@ async function fetchAll() {
       const company = extractText(p['Company name']);
       if (!company) continue;
       const orgType = extractText(p['Organization Type']);
+
+      // Associated Contact — semicolon-separated list of contacts/emails
+      const contact = extractText(p['Associated Contact']);
+
+      // Contact Owner — Person field (who manages this relationship)
+      const owner = extractText(p['Contact Owner'] || p['Owner'] || p['Relationship Owner']);
+
+      // Connection warmth — Select field (Warm / Cold / etc.)
+      const connection = extractText(p['Connection'] || p['Relationship'] || p['Warmth']);
+
       contacts.push({
         id: contacts.length,
         name: company,
@@ -53,6 +67,9 @@ async function fetchAll() {
         website: extractText(p['Website URL']),
         basedIn: extractText(p['Based in: ']),
         industry: extractText(p['Industry']),
+        contact,
+        owner,
+        connection: connection ? connection.toLowerCase() : '',
         role: '',
         notes: '',
         tier: parseTier(orgType),
