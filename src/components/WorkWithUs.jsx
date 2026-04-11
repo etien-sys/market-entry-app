@@ -1,3 +1,5 @@
+import { DEFAULT_REPS } from '../config/reps';
+
 const PURPLE = '#7c6fe0';
 
 const SERVICES = [
@@ -8,8 +10,6 @@ const SERVICES = [
   { icon: '⚙️', title: 'RevOps', description: 'Pipeline design, CRM setup, and revenue processes built to scale — so your team closes faster and loses less in the handoffs.' },
   { icon: '✍️', title: 'ContentOps', description: 'A content engine that builds your authority in the new market — thought leadership, case studies, and distribution that generate inbound.' },
 ];
-
-import { DEFAULT_REPS } from '../config/reps';
 
 export default function WorkWithUs({ intake, onBack, onRestart, rep }) {
   const advisors = rep ? [rep] : DEFAULT_REPS;
@@ -56,8 +56,8 @@ export default function WorkWithUs({ intake, onBack, onRestart, rep }) {
 
       {/* Advisors */}
       <div style={{ marginBottom: '20px' }}>
-        <h3 style={{ fontSize: '17px', fontWeight: '700', color: '#e8e8f0', marginBottom: '5px' }}>Meet the advisors</h3>
-        <p style={{ fontSize: '13px', color: '#6b6b85' }}>Two senior operators with networks across UAE, CEE, and global investor circles.</p>
+        <h3 style={{ fontSize: '17px', fontWeight: '700', color: '#e8e8f0', marginBottom: '5px' }}>Meet the advisor{advisors.length > 1 ? 's' : ''}</h3>
+        <p style={{ fontSize: '13px', color: '#6b6b85' }}>Senior operator{advisors.length > 1 ? 's' : ''} with networks across UAE, CEE, and global investor circles.</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: advisors.length === 1 ? '1fr' : '1fr 1fr', gap: '10px', marginBottom: '36px' }}>
