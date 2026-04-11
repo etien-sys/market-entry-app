@@ -5,9 +5,9 @@ const PURPLE_DIM = 'rgba(124,111,224,0.15)';
 
 const MARKETS = [
   { id: 'UAE', label: 'UAE', sub: 'Dubai · Abu Dhabi' },
-  { id: 'Saudi Arabia', label: 'Saudi Arabia', sub: 'Riyadh · Jeddah' },
   { id: 'CEE', label: 'CEE', sub: 'Sofia · Bucharest · Athens' },
-  { id: 'All', label: 'All markets', sub: 'Multi-market entry' },
+  { id: 'DACH', label: 'DACH', sub: 'Berlin · Vienna · Zurich' },
+  { id: 'US', label: 'US', sub: 'New York · San Francisco' },
 ];
 
 const STAGES = [

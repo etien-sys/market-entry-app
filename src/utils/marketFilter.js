@@ -1,17 +1,19 @@
 const MARKET_LOCATIONS = {
-  UAE: ['uae', 'united arab emirates', 'dubai', 'abu dhabi', 'sharjah'],
-  'Saudi Arabia': ['saudi arabia', 'riyadh', 'jeddah', 'ksa', 'saudi'],
+  UAE: ['uae', 'united arab emirates', 'dubai', 'abu dhabi', 'sharjah', 'mena'],
   CEE: [
-    // Countries
     'albania', 'bosnia', 'bulgaria', 'croatia', 'cyprus', 'czechia', 'czech republic',
     'estonia', 'greece', 'hungary', 'latvia', 'lithuania', 'moldova', 'montenegro',
     'north macedonia', 'poland', 'romania', 'serbia', 'slovakia', 'slovenia',
-    'turkey', 'ukraine', 'austria', 'germany', 'france', 'italy', 'portugal',
-    'spain', 'switzerland', 'netherlands', 'belgium', 'luxembourg', 'ireland',
-    'united kingdom', 'uk', 'nordics', 'europe', 'cee', 'balkans',
-    // Cities
-    'sofia', 'bucharest', 'athens', 'zagreb', 'london', 'warsaw', 'prague', 'budapest',
-    'berlin', 'amsterdam', 'paris', 'milan', 'vienna', 'zurich', 'brussels',
+    'ukraine', 'nordics', 'cee', 'balkans',
+    'sofia', 'bucharest', 'athens', 'zagreb', 'warsaw', 'prague', 'budapest',
+  ],
+  DACH: [
+    'germany', 'austria', 'switzerland', 'deutschland',
+    'berlin', 'munich', 'hamburg', 'vienna', 'zurich', 'geneva',
+  ],
+  US: [
+    'united states', 'usa', 'new york', 'san francisco', 'los angeles',
+    'chicago', 'boston', 'seattle', 'austin', 'miami',
   ],
   All: [],
 };

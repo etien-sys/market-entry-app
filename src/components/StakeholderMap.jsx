@@ -184,7 +184,7 @@ function ServicesSidebar({ intake, onNext }) {
           How we get you in the room
         </p>
         <p style={{ fontSize: '11px', color: '#4a4a65', lineHeight: '1.45' }}>
-          For {intake.stage}-stage companies entering {intake.market === 'All' ? 'new markets' : intake.market}
+          For {intake.stage}-stage companies entering {intake.market}
         </p>
       </div>
 
@@ -303,7 +303,7 @@ export default function StakeholderMap({ intake, contacts, loading, onNext, onBa
           Stakeholder Map
         </p>
         <h2 style={{ fontSize: '26px', fontWeight: '800', color: '#e8e8f0', letterSpacing: '-0.6px', marginBottom: '6px' }}>
-          {intake.market === 'All' ? 'All markets' : intake.market} network
+          {intake.market} network
         </h2>
         <p style={{ fontSize: '13px', color: '#4a4a65' }}>
           {loading ? 'Loading contacts…' : `${categoryFiltered.length} contact${categoryFiltered.length !== 1 ? 's' : ''} matched to your goal`}
@@ -353,8 +353,25 @@ export default function StakeholderMap({ intake, contacts, loading, onNext, onBa
           {loading ? (
             <div style={{ textAlign: 'center', padding: '60px 0', color: '#3a3a52', fontSize: '14px' }}>Loading contacts…</div>
           ) : sorted.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px 0', color: '#3a3a52', fontSize: '14px' }}>
-              No contacts found for this filter.
+            <div style={{
+              textAlign: 'center', padding: '48px 24px',
+              background: '#111119', border: '1px solid #1e1e2e',
+              borderRadius: '12px',
+            }}>
+              <div style={{ fontSize: '28px', marginBottom: '12px' }}>🌍</div>
+              <p style={{ fontSize: '14px', fontWeight: '700', color: '#e8e8f0', marginBottom: '6px' }}>
+                We're building our {intake.market} network
+              </p>
+              <p style={{ fontSize: '12px', color: '#4a4a65', lineHeight: '1.7', marginBottom: '20px' }}>
+                No contacts matched this filter yet — reach out to Slavena & Etien and they'll source the right connections for you directly.
+              </p>
+              <button onClick={onNext} style={{
+                padding: '10px 22px', background: PURPLE, color: '#fff',
+                border: 'none', borderRadius: '8px', fontSize: '13px',
+                fontWeight: '600', cursor: 'pointer',
+              }}>
+                Work with us →
+              </button>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
