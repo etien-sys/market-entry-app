@@ -8,6 +8,9 @@ import MarketGuide from './components/MarketGuide';
 import StakeholderMap from './components/StakeholderMap';
 import WorkWithUs from './components/WorkWithUs';
 import Chatbot from './components/Chatbot';
+import Admin from './components/Admin';
+
+const IS_ADMIN = new URLSearchParams(window.location.search).has('admin');
 
 export default function App() {
   const [step, setStep] = useState(1);
@@ -18,9 +21,21 @@ export default function App() {
 
   useEffect(() => {
     fetchContacts()
-      .then(data => { console.log('[Market Entry] Contacts:', data); setContacts(data); setLoading(false); })
+      .then(data => { setContacts(data); setLoading(false); })
       .catch(err => { console.error(err); setFetchError(err.message); setLoading(false); });
   }, []);
+
+  // Admin mode — full database search, bypasses normal flow
+  if (IS_ADMIN) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#09090f' }}>
+        <Background />
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <Admin contacts={contacts} loading={loading} />
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     const saved = localStorage.getItem('market-entry-intake');
