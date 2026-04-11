@@ -25,7 +25,7 @@ export default function WorkWithUs({ intake, onBack, onRestart }) {
           How we accelerate<br />your entry
         </h2>
         <p style={{ fontSize: '14px', color: '#6b6b85', lineHeight: '1.7' }}>
-          We don't do generic consulting. Here's exactly what we do for {intake.stage}-stage companies entering {intake.market === 'All' ? 'new markets' : intake.market}.
+          We don't do generic consulting. Here's exactly what we do for companies entering {intake.market === 'All' ? 'new markets' : intake.market}.
         </p>
       </div>
 

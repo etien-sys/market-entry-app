@@ -26,16 +26,14 @@ function detectCategoryFromGoal(goal) {
 }
 
 function getRelevanceReason(contact, intake) {
-  const { stage, goal } = intake;
+  const { goal } = intake;
   const orgLower = (contact.orgType || '').toLowerCase();
   const goalLower = (goal || '').toLowerCase();
   const loc = contact.basedIn || 'the region';
   const industry = contact.industry ? ` (${contact.industry})` : '';
 
   if (orgLower.includes('investor') || orgLower.includes('family office') || orgLower.includes('high-net-worth')) {
-    if (stage === 'Idea' || stage === 'Early') return `Early-stage investor active in ${loc}${industry} — relevant if you're raising your first round.`;
-    if (stage === 'Growth') return `Growth-stage investor in ${loc}${industry} — can back your expansion with capital and connections.`;
-    return `Investor with a ${loc} portfolio${industry} — potential lead or co-investor for your round.`;
+    return `Investor active in ${loc}${industry} — relevant if you're raising capital or looking for strategic backing.`;
   }
   if (orgLower.includes('corporation') || orgLower.includes('bank')) {
     if (goalLower.includes('sales') || goalLower.includes('client') || goalLower.includes('customer') || goalLower.includes('revenue'))
@@ -46,7 +44,7 @@ function getRelevanceReason(contact, intake) {
     return `${contact.company} organises events in ${loc} — getting on their stage puts you in front of buyers and investors.`;
   }
   if (orgLower.includes('startup') || orgLower.includes('scaleup') || orgLower.includes('accelerator')) {
-    return `${stage === 'Idea' || stage === 'Early' ? 'Peer startup' : 'Scaleup'}${industry} navigating ${loc} — warm intro source, co-sell partner, or market reference.`;
+    return `Startup or scaleup${industry} navigating ${loc} — warm intro source, co-sell partner, or market reference.`;
   }
   if (orgLower.includes('service')) {
     return `Local service provider${industry} in ${loc} — can accelerate setup and open doors faster than you could alone.`;
@@ -184,7 +182,7 @@ function ServicesSidebar({ intake, onNext }) {
           How we get you in the room
         </p>
         <p style={{ fontSize: '11px', color: '#4a4a65', lineHeight: '1.45' }}>
-          For {intake.stage}-stage companies entering {intake.market}
+          For companies entering {intake.market}
         </p>
       </div>
 

@@ -38,13 +38,14 @@ export default {
       });
     }
 
-    const { name, email, companyName, market, stage, goal, companyIntro, submittedAt } = body;
+    const { name, email, companyName, market, industry, location, goal, companyIntro, submittedAt } = body;
 
     // Build AI summary from all form fields
     const summary = [
       goal        && `Goal: ${goal}`,
       companyIntro && `About: ${companyIntro}`,
-      stage       && `Company stage: ${stage}`,
+      industry    && `Industry: ${industry}`,
+      location    && `Based in: ${location}`,
       market      && `Target market: ${market}`,
       submittedAt && `Submitted: ${new Date(submittedAt).toLocaleString('en-GB', { timeZone: 'Europe/Sofia' })}`,
     ].filter(Boolean).join('\n\n');

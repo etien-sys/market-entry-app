@@ -11,13 +11,6 @@ const MARKETS = [
   { id: 'US', label: 'US', sub: 'New York · San Francisco' },
 ];
 
-const STAGES = [
-  { id: 'Idea', sub: 'Pre-product' },
-  { id: 'Early', sub: 'First revenue' },
-  { id: 'Growth', sub: 'Scaling' },
-  { id: 'Scale', sub: 'Expanding' },
-];
-
 function FieldLabel({ children }) {
   return (
     <p style={{ fontSize: '11px', fontWeight: '700', color: '#4a4a65', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>
@@ -70,7 +63,8 @@ export default function IntakeForm({ onComplete }) {
   const [market, setMarket] = useState('');
   const [goal, setGoal] = useState('');
   const [companyIntro, setCompanyIntro] = useState('');
-  const [stage, setStage] = useState('');
+  const [industry, setIndustry] = useState('');
+  const [location, setLocation] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [companyName, setCompanyName] = useState('');
@@ -84,7 +78,6 @@ export default function IntakeForm({ onComplete }) {
     if (!market) errs.market = true;
     if (!goal.trim()) errs.goal = true;
     if (!companyIntro.trim()) errs.companyIntro = true;
-    if (!stage) errs.stage = true;
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = true;
     if (Object.keys(errs).length) { setErrors(errs); return; }
 
@@ -92,7 +85,8 @@ export default function IntakeForm({ onComplete }) {
       market,
       goal: goal.trim(),
       companyIntro: companyIntro.trim(),
-      stage,
+      industry: industry.trim(),
+      location: location.trim(),
       name: name.trim(),
       email: email.trim(),
       companyName: companyName.trim(),
@@ -101,7 +95,6 @@ export default function IntakeForm({ onComplete }) {
 
     localStorage.setItem('market-entry-intake', JSON.stringify(data));
 
-    // Send to lead capture endpoint if configured
     if (LEAD_ENDPOINT) {
       try {
         await fetch(LEAD_ENDPOINT, {
@@ -110,8 +103,10 @@ export default function IntakeForm({ onComplete }) {
           body: JSON.stringify({
             name: data.name || '(not provided)',
             email: data.email || '(not provided)',
+            companyName: data.companyName || '(not provided)',
             market: data.market,
-            stage: data.stage,
+            industry: data.industry,
+            location: data.location,
             goal: data.goal,
             company: data.companyIntro,
             submittedAt: data.submittedAt,
@@ -183,28 +178,18 @@ export default function IntakeForm({ onComplete }) {
           </p>
         </div>
 
-        {/* Stage */}
-        <div>
-          <FieldLabel>Company stage</FieldLabel>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-            {STAGES.map(s => {
-              const sel = stage === s.id;
-              return (
-                <button key={s.id} type="button" onClick={() => { setStage(s.id); clearError('stage'); }}
-                  style={{
-                    padding: '12px 8px', textAlign: 'center', cursor: 'pointer',
-                    border: `1.5px solid ${sel ? PURPLE : errors.stage ? '#f87171' : '#1e1e2e'}`,
-                    borderRadius: '10px',
-                    background: sel ? PURPLE_DIM : '#111119',
-                    transition: 'all 0.15s',
-                  }}>
-                  <div style={{ fontSize: '13px', fontWeight: '600', color: sel ? '#c4befc' : '#e8e8f0', marginBottom: '2px' }}>{s.id}</div>
-                  <div style={{ fontSize: '10px', color: sel ? '#7c6fe0' : '#4a4a65' }}>{s.sub}</div>
-                </button>
-              );
-            })}
+        {/* Industry + Location */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div>
+            <FieldLabel>Industry</FieldLabel>
+            <DarkInput value={industry} onChange={e => setIndustry(e.target.value)}
+              placeholder="e.g. FinTech, B2B SaaS, Climate Tech" />
           </div>
-          {errors.stage && <p style={{ fontSize: '12px', color: '#f87171', marginTop: '6px' }}>Please select your stage.</p>}
+          <div>
+            <FieldLabel>Current location</FieldLabel>
+            <DarkInput value={location} onChange={e => setLocation(e.target.value)}
+              placeholder="e.g. Sofia, Bulgaria" />
+          </div>
         </div>
 
         {/* Contact details */}

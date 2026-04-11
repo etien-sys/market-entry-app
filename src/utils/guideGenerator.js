@@ -77,7 +77,7 @@ function sectorNote(sector, market) {
 }
 
 function buildSteps(intake) {
-  const { market, goal, stage, companyIntro = '' } = intake;
+  const { market, goal, industry, companyIntro = '' } = intake;
   const ctx = MARKET_CONTEXT[market] || MARKET_CONTEXT['All'];
   const intent = detectIntent(goal);
   const sector = detectSector(goal, companyIntro);
@@ -101,7 +101,7 @@ function buildSteps(intake) {
     });
   } else {
     const beachheadByIntent = {
-      fundraising: `Map the investor landscape before outreach. In ${marketLabel}, the most relevant profiles are family offices (check tickets $500K–$5M), regional VCs with portfolio fit, and sovereign-backed programs. ${stage === 'Idea' || stage === 'Early' ? 'At your stage, target investors who have written pre-seed or seed checks locally in the last 18 months.' : 'At your stage, target investors who have backed growth rounds in your sector.'}`,
+      fundraising: `Map the investor landscape before outreach. In ${marketLabel}, the most relevant profiles are family offices (check tickets $500K–$5M), regional VCs with portfolio fit, and sovereign-backed programs. Target investors who have backed companies in your sector${industry ? ` (${industry})` : ''} in the last 18 months.`,
       partnerships: `Define exactly what you need from a partner before mapping them — distribution, co-sell, integration, or local credibility. In ${marketLabel}, the most valuable partnerships are often with established local operators who already have the relationships you\'re building.`,
       media: `Map the media landscape before pitching. In ${marketLabel}, a handful of publications drive most of the industry readership. Getting one strong placement in the right outlet is worth more than five in general tech press.`,
       sales: `Narrow your ICP before outreach. In ${marketLabel}, the same product often sells to a different buyer persona than in your home market. Run 10 discovery calls before setting up an entity — validate the problem and the champion profile first.`,
@@ -124,22 +124,14 @@ function buildSteps(intake) {
   steps.push({
     icon: '🤝',
     heading: 'Build your intro pipeline',
-    body: ctx.outreachDetail + (stage === 'Idea' || stage === 'Early'
-      ? ' At your stage, aim for 8–12 quality warm introductions over 90 days — depth over breadth.'
-      : ' At your stage, systematise this: track intro requests, conversion to meetings, and meeting-to-pipeline rate.'),
+    body: ctx.outreachDetail + ' Aim for 8–12 quality warm introductions over your first 90 days — track intro requests, conversion to meetings, and meeting-to-pipeline rate.',
   });
 
   // Step 5: First milestone
-  const milestones = {
-    Idea: `Your 90-day milestone: complete 10 customer discovery interviews and validate that the problem you\'re solving is acute enough to pay for. Don\'t pitch — just listen and map the buyer\'s world.`,
-    Early: `Your 90-day milestone: land one paying customer or a signed pilot agreement with a named account. One reference customer in ${marketLabel} is worth more than any marketing spend at this stage.`,
-    Growth: `Your 90-day milestone: close 3 new accounts and identify your top-performing channel in ${marketLabel}. Use those wins to build a reference story that opens the next 10 doors.`,
-    Scale: `Your 90-day milestone: validate whether ${marketLabel} can become a self-sustaining revenue territory. Set a P&L target and hire or partner for local execution before your next board review.`,
-  };
   steps.push({
     icon: '🏁',
     heading: 'Your first 90-day milestone',
-    body: milestones[stage] || milestones['Early'],
+    body: `Your 90-day milestone: land one paying customer or a signed pilot agreement with a named account in ${marketLabel}. One reference customer there is worth more than any marketing spend at this stage — use it to open the next 10 doors.`,
   });
 
   return steps;

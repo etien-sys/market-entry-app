@@ -5,7 +5,7 @@ const PURPLE_DIM = 'rgba(124,111,224,0.15)';
 const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
 
 function buildSystemPrompt(intake, contacts) {
-  const { market, goal, stage, companyIntro } = intake;
+  const { market, goal, industry, location, companyIntro } = intake;
   const contactLines = (contacts || [])
     .slice(0, 20)
     .map(c => `- ${c.name} (${c.role} at ${c.company}, ${c.basedIn || market}, ${c.orgType})`)
@@ -17,7 +17,8 @@ ABOUT THE FOUNDER:
 - Company: ${companyIntro || 'Not provided'}
 - Market they are entering: ${market}
 - Goal: ${goal}
-- Company stage: ${stage}
+- Industry: ${industry || 'Not provided'}
+- Current location: ${location || 'Not provided'}
 
 RELEVANT CONTACTS IN THEIR NETWORK (visible to them on the platform):
 ${contactLines || 'No contacts loaded yet.'}
