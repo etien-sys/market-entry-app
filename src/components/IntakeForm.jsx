@@ -73,6 +73,7 @@ export default function IntakeForm({ onComplete }) {
   const [stage, setStage] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const [errors, setErrors] = useState({});
 
   function clearError(f) { setErrors(e => ({ ...e, [f]: null })); }
@@ -94,6 +95,7 @@ export default function IntakeForm({ onComplete }) {
       stage,
       name: name.trim(),
       email: email.trim(),
+      companyName: companyName.trim(),
       submittedAt: new Date().toISOString(),
     };
 
@@ -212,6 +214,11 @@ export default function IntakeForm({ onComplete }) {
             Leave your details and our team will reach out with personalised intros and market entry support.
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <DarkInput
+              value={companyName}
+              onChange={e => setCompanyName(e.target.value)}
+              placeholder="Company name"
+            />
             <DarkInput
               value={name}
               onChange={e => setName(e.target.value)}
