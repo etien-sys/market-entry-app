@@ -54,7 +54,7 @@ async function fetchAll() {
       const contact = extractText(p['Associated Contact']);
 
       // Contact Owner — Person field (who manages this relationship)
-      const owner = extractText(p['Contact Owner'] || p['Owner'] || p['Relationship Owner']);
+      const owner = extractText(p['Company Owner']);
 
       // Connection warmth — Select field (Warm / Cold / etc.)
       const connection = extractText(p['Connection'] || p['Relationship'] || p['Warmth']);
