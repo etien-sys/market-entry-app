@@ -54,7 +54,7 @@ async function fetchSheetContacts() {
         orgType: row['organization_type'] || '',
         industry: row['industry'] || '',
         website: row['website'] || '',
-        email: row['email'] || row['associated_email'] || '',
+        contact: row['email'] || row['associated_email'] || '',
         notes: row['notes'] || '',
         tier: parseTier(row['organization_type']),
         source: 'sheet',
