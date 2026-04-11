@@ -47,8 +47,6 @@ if goal:
 if industry:
     properties['Industry'] = {'multi_select': [{'name': industry}]}
 
-if location:
-    properties[' Market'] = {'rich_text': [{'text': {'content': location}}]}
 
 body = json.dumps({
     'parent': {'database_id': LEADS_DB_ID},
