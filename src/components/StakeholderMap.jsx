@@ -55,7 +55,7 @@ function getRelevanceReason(contact, intake) {
   return `Active in ${loc}${industry} — relevant to building your network for the goals you described.`;
 }
 
-function ContactCard({ contact, intake, isFirstLocked, showLockBanner, forceVisible }) {
+function ContactCard({ contact, intake, isFirstLocked, showLockBanner, forceVisible, repName }) {
   const color = getOrgColor(contact.orgType);
   const isPaid = contact.tier === 'paid' && !forceVisible; // first 5 always visible
   const relevance = getRelevanceReason(contact, intake);
@@ -425,7 +425,8 @@ export default function StakeholderMap({ intake, contacts, loading, onNext, onBa
                 <ContactCard key={contact.id} contact={contact} intake={intake}
                   forceVisible={i < MIN_FREE}
                   isFirstLocked={i === lockBannerIndex}
-                  showLockBanner={lockBannerIndex !== -1} />
+                  showLockBanner={lockBannerIndex !== -1}
+                  repName={repName} />
               ))}
             </div>
           )}
