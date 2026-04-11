@@ -282,58 +282,37 @@ function MobileServicesSheet({ intake, onNext }) {
   );
 }
 
-const ENTRY_SEQUENCE = {
-  fundraising: {
-    label: 'Fundraising entry sequence',
-    steps: ['Start with Investors who have written checks in your market', 'Use early investor intros to reach Corporate partners', 'Add Service Providers for local setup support'],
-    first: 'Investor',
-  },
-  sales: {
-    label: 'Sales entry sequence',
-    steps: ['Identify 3 target enterprise accounts in this market', 'Find a Service Provider or Startup who already sells to them', 'Use that warm intro to get your first meeting'],
-    first: 'Corporate',
-  },
-  partnerships: {
-    label: 'Partnership entry sequence',
-    steps: ['Identify Startups or Scaleups with complementary products', 'Look for Service Providers who need your capability in their stack', 'Events are the fastest way to meet both in one trip'],
-    first: 'Startup',
-  },
-  media: {
-    label: 'Media & brand entry sequence',
-    steps: ['Start with Media contacts who cover your vertical in this market', 'Events get you in front of journalists covering the sector live', 'Investors and Corporate contacts amplify coverage once you have it'],
-    first: 'Media',
-  },
-};
-
-function detectIntent(goal) {
-  const g = (goal || '').toLowerCase();
-  if (/investor|raise|fund|round|vc|capital|seed|angel/.test(g)) return 'fundraising';
-  if (/partner|channel|reseller|alliance|collaborat/.test(g)) return 'partnerships';
-  if (/media|press|brand|coverage|publish/.test(g)) return 'media';
-  return 'sales';
-}
-
-function GuidanceBanner({ intake, totalCount }) {
-  const intent = detectIntent(intake.goal);
-  const seq = ENTRY_SEQUENCE[intent];
+function GuidanceBanner({ totalCount, onNext }) {
   return (
     <div style={{
       background: '#111119', border: '1px solid #1e1e2e',
       borderLeft: `4px solid ${PURPLE}`,
       borderRadius: '12px', padding: '16px 18px', marginBottom: '16px',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
         <span style={{ fontSize: '11px', fontWeight: '800', color: PURPLE, textTransform: 'uppercase', letterSpacing: '0.7px' }}>
-          Where to start
+          How to use this map
         </span>
         <span style={{ fontSize: '11px', color: '#3a3a52' }}>·</span>
-        <span style={{ fontSize: '11px', color: '#3a3a52' }}>{totalCount.toLocaleString()} contacts in this market</span>
+        <span style={{ fontSize: '11px', color: '#3a3a52' }}>{totalCount.toLocaleString()} contacts</span>
       </div>
-      <ol style={{ margin: 0, paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        {seq.steps.map((s, i) => (
-          <li key={i} style={{ fontSize: '12px', color: '#6b6b85', lineHeight: '1.55' }}>{s}</li>
-        ))}
-      </ol>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+          <span style={{ fontSize: '16px', flexShrink: 0 }}>💬</span>
+          <p style={{ fontSize: '12px', color: '#6b6b85', lineHeight: '1.55', margin: 0 }}>
+            <span style={{ color: '#c4befc', fontWeight: '600' }}>Ask the SETI chatbot</span> (bottom right) who to approach first, how to prepare for a meeting, or what your next steps should be.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+          <span style={{ fontSize: '16px', flexShrink: 0 }}>🤝</span>
+          <p style={{ fontSize: '12px', color: '#6b6b85', lineHeight: '1.55', margin: 0 }}>
+            <button onClick={onNext} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#c4befc', fontWeight: '600', fontSize: '12px' }}>
+              Work with Etien & Slavena
+            </button>
+            {' '}for warm intros, personalised consulting, marketing & sales strategy, and curated lead gen experiences.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -347,8 +326,10 @@ export default function StakeholderMap({ intake, contacts, loading, onNext, onBa
 
   const marketFiltered = filterByMarket(contacts, intake.market);
   const categoryFiltered = filterByCategory(marketFiltered, category);
-  // Sort: complete profiles first (have website + orgType), then free before paid
+  // Sort: original sheet contacts first, then by completeness, then free before paid
   const sorted = [...categoryFiltered].sort((a, b) => {
+    if (a.source === 'sheet' && b.source !== 'sheet') return -1;
+    if (b.source === 'sheet' && a.source !== 'sheet') return 1;
     const aScore = (a.website ? 1 : 0) + (a.orgType ? 1 : 0) + (a.industry ? 1 : 0);
     const bScore = (b.website ? 1 : 0) + (b.orgType ? 1 : 0) + (b.industry ? 1 : 0);
     if (bScore !== aScore) return bScore - aScore;
@@ -385,7 +366,7 @@ export default function StakeholderMap({ intake, contacts, loading, onNext, onBa
 
       {/* Guidance banner */}
       {!loading && marketFiltered.length > 0 && (
-        <GuidanceBanner intake={intake} totalCount={marketFiltered.length} />
+        <GuidanceBanner totalCount={marketFiltered.length} onNext={onNext} />
       )}
 
       {/* Category filters */}

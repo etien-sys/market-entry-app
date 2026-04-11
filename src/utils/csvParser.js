@@ -46,6 +46,7 @@ async function fetchSheetContacts() {
         website: row['website'] || '',
         notes: row['notes'] || '',
         tier: parseTier(row['organization_type']),
+        source: 'sheet',
       };
     }).filter((c) => c.name);
   } catch (_) {
