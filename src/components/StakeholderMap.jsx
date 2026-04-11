@@ -280,7 +280,7 @@ function MobileServicesSheet({ intake, onNext }) {
   );
 }
 
-function GuidanceBanner({ totalCount, onNext }) {
+function GuidanceBanner({ totalCount, onNext, repName }) {
   return (
     <div style={{
       background: '#111119', border: '1px solid #1e1e2e',
@@ -365,7 +365,7 @@ export default function StakeholderMap({ intake, contacts, loading, onNext, onBa
 
       {/* Guidance banner */}
       {!loading && marketFiltered.length > 0 && (
-        <GuidanceBanner totalCount={marketFiltered.length} onNext={onNext} />
+        <GuidanceBanner totalCount={marketFiltered.length} onNext={onNext} repName={repName} />
       )}
 
       {/* Category filters */}
