@@ -1,6 +1,16 @@
 const SHEET_URL =
   'https://docs.google.com/spreadsheets/d/1_REP2jJbLAuGXBe8cmXuFjgCiaXBHsra-KfDdmNFKpM/export?format=csv';
 
+const ROW_NAME = /^row\s*\d+$/i;
+
+function nameFromWebsite(url) {
+  if (!url) return null;
+  const domain = url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0].trim();
+  if (!domain) return null;
+  const base = domain.split('.')[0];
+  return base ? base.charAt(0).toUpperCase() + base.slice(1) : null;
+}
+
 function parseTier(orgType) {
   if (!orgType) return 'free';
   const lower = orgType.toLowerCase();
@@ -48,7 +58,16 @@ async function fetchSheetContacts() {
         tier: parseTier(row['organization_type']),
         source: 'sheet',
       };
-    }).filter((c) => c.name);
+    }).map((c) => {
+      // Fix "Row XXXX" placeholder names
+      if (ROW_NAME.test(c.name)) {
+        const derived = nameFromWebsite(c.website);
+        if (!derived) return null; // no website — drop it
+        c.name = derived;
+        c.company = derived;
+      }
+      return c;
+    }).filter(Boolean).filter((c) => c.name);
   } catch (_) {
     return [];
   }
