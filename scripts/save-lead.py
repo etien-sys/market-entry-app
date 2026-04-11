@@ -11,9 +11,9 @@ if not KEY:
 LEADS_DB_ID = '2889a7b410ae81f39a23c065ab103614'
 
 MARKET_MAP = {
-    'UAE':  None,
+    'UAE':  'UAE',
     'CEE':  'CEE',
-    'DACH': None,
+    'DACH': 'DACH',
     'US':   'United States',
 }
 
@@ -55,7 +55,7 @@ if industry:
 
 notion_market = MARKET_MAP.get(market)
 if notion_market:
-    properties[' Market'] = {'select': {'name': notion_market}}
+    properties['Market'] = {'select': {'name': notion_market}}
 
 body = json.dumps({
     'parent': {'database_id': LEADS_DB_ID},
