@@ -4,7 +4,8 @@ const PURPLE = '#7c6fe0';
 const PURPLE_DIM = 'rgba(124,111,224,0.15)';
 const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
 
-function buildSystemPrompt(intake, contacts) {
+function buildSystemPrompt(intake, contacts, rep) {
+  const repName = rep ? rep.name : 'Slavena and Etien';
   const { market, goal, industry, location, companyIntro } = intake;
   const contactLines = (contacts || [])
     .slice(0, 20)
@@ -31,7 +32,7 @@ YOUR ROLE:
 - Be concise, specific, and founder-friendly
 
 WARM INTRODUCTIONS:
-Whenever the user asks about getting an introduction, a warm intro, being connected to someone, or how to reach a specific contact, always include this: "To get a warm intro, reach out to Slavena and Etien — our human relations team will design the best way to introduce you based on your context and goals."
+Whenever the user asks about getting an introduction, a warm intro, being connected to someone, or how to reach a specific contact, always include this: "To get a warm intro, reach out to ${repName} — our human relations team will design the best way to introduce you based on your context and goals."
 
 Do not make up contacts not listed above. If asked about contacts not on the list, say you can only speak to the ones visible in their map.`;
 }
@@ -112,7 +113,7 @@ function ChatMessage({ msg }) {
   );
 }
 
-export default function Chatbot({ intake, contacts }) {
+export default function Chatbot({ intake, contacts, rep }) {
   const [open, setOpen] = useState(false);
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('seti-claude-key') || '');
   const [messages, setMessages] = useState([]);
@@ -158,7 +159,7 @@ export default function Chatbot({ intake, contacts }) {
           model: HAIKU_MODEL,
           max_tokens: 600,
           stream: true,
-          system: buildSystemPrompt(intake, contacts),
+          system: buildSystemPrompt(intake, contacts, rep),
           messages: nextHistory.map(m => ({ role: m.role, content: m.content })),
         }),
       });

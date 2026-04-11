@@ -9,12 +9,10 @@ const SERVICES = [
   { icon: '✍️', title: 'ContentOps', description: 'A content engine that builds your authority in the new market — thought leadership, case studies, and distribution that generate inbound.' },
 ];
 
-const ADVISORS = [
-  { initials: 'SV', name: 'Slavena', focus: 'Market Entry & BD', bio: 'Connects companies with the right decision-makers across UAE, CEE, and beyond.', color: PURPLE, calendly: 'https://calendly.com' },
-  { initials: 'ET', name: 'Etien', focus: 'Strategy & Investors', bio: 'Helps founders sharpen their story and get in front of the right investors and partners.', color: '#34d399', calendly: 'https://calendly.com' },
-];
+import { DEFAULT_REPS } from '../config/reps';
 
-export default function WorkWithUs({ intake, onBack, onRestart }) {
+export default function WorkWithUs({ intake, onBack, onRestart, rep }) {
+  const advisors = rep ? [rep] : DEFAULT_REPS;
   return (
     <div style={{ padding: '40px 24px 60px' }}>
       <div style={{ marginBottom: '36px' }}>
@@ -62,8 +60,8 @@ export default function WorkWithUs({ intake, onBack, onRestart }) {
         <p style={{ fontSize: '13px', color: '#6b6b85' }}>Two senior operators with networks across UAE, CEE, and global investor circles.</p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '36px' }}>
-        {ADVISORS.map((a, i) => (
+      <div style={{ display: 'grid', gridTemplateColumns: advisors.length === 1 ? '1fr' : '1fr 1fr', gap: '10px', marginBottom: '36px' }}>
+        {advisors.map((a, i) => (
           <div key={i} style={{
             background: '#111119', border: '1px solid #1e1e2e',
             borderTop: `4px solid ${a.color}`, borderRadius: '12px',

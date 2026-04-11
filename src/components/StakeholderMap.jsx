@@ -155,7 +155,7 @@ function ContactCard({ contact, intake, isFirstLocked, showLockBanner, forceVisi
             🔒 Unlock the full network
           </p>
           <p style={{ fontSize: '12px', color: '#6b6b85', marginBottom: '16px', lineHeight: '1.6' }}>
-            Get warm intros from Slavena & Etien — briefed on your context before you meet.
+            Get warm intros from {repName} — briefed on your context before you meet.
           </p>
           <a href="https://calendly.com" target="_blank" rel="noreferrer" style={{
             display: 'inline-block', padding: '10px 24px',
@@ -305,7 +305,7 @@ function GuidanceBanner({ totalCount, onNext }) {
           <span style={{ fontSize: '16px', flexShrink: 0 }}>🤝</span>
           <p style={{ fontSize: '12px', color: '#6b6b85', lineHeight: '1.55', margin: 0 }}>
             <button onClick={onNext} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#c4befc', fontWeight: '600', fontSize: '12px' }}>
-              Work with Etien & Slavena
+              Work with {repName}
             </button>
             {' '}for warm intros, personalised consulting, marketing & sales strategy, and curated lead gen experiences.
           </p>
@@ -315,7 +315,8 @@ function GuidanceBanner({ totalCount, onNext }) {
   );
 }
 
-export default function StakeholderMap({ intake, contacts, loading, onNext, onBack }) {
+export default function StakeholderMap({ intake, contacts, loading, onNext, onBack, rep }) {
+  const repName = rep ? rep.name : 'Slavena & Etien';
   // Pre-select category based on stated goal
   const [category, setCategory] = useState(() => detectCategoryFromGoal(intake.goal));
   const isMobile = useIsMobile();
@@ -408,7 +409,7 @@ export default function StakeholderMap({ intake, contacts, loading, onNext, onBa
                 We're building our {intake.market} network
               </p>
               <p style={{ fontSize: '12px', color: '#4a4a65', lineHeight: '1.7', marginBottom: '20px' }}>
-                No contacts matched this filter yet — reach out to Slavena & Etien and they'll source the right connections for you directly.
+                No contacts matched this filter yet — reach out to {repName} and they'll source the right connections for you directly.
               </p>
               <button onClick={onNext} style={{
                 padding: '10px 22px', background: PURPLE, color: '#fff',
@@ -437,10 +438,10 @@ export default function StakeholderMap({ intake, contacts, loading, onNext, onBa
             ← Back to market guide
           </button>
         </div>
-        {!isMobile && <ServicesSidebar intake={intake} onNext={onNext} />}
+        {!isMobile && <ServicesSidebar intake={intake} onNext={onNext} repName={repName} />}
       </div>
 
-      {isMobile && <MobileServicesSheet intake={intake} onNext={onNext} />}
+      {isMobile && <MobileServicesSheet intake={intake} onNext={onNext} repName={repName} />}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { fetchContacts } from './utils/csvParser';
 import { filterByMarket } from './utils/marketFilter';
+import { getRepFromUrl } from './config/reps';
 import Background from './components/Background';
 import StepIndicator from './components/StepIndicator';
 import IntakeForm from './components/IntakeForm';
@@ -11,6 +12,7 @@ import Chatbot from './components/Chatbot';
 import Admin from './components/Admin';
 
 const IS_ADMIN = new URLSearchParams(window.location.search).has('admin');
+const rep = getRepFromUrl(); // null = show both advisors
 
 export default function App() {
   const [step, setStep] = useState(1);
@@ -72,12 +74,12 @@ export default function App() {
         <div style={{ paddingBottom: '80px' }}>
           {step === 1 && <IntakeForm onComplete={handleIntakeComplete} />}
           {step === 2 && intake && <MarketGuide intake={intake} onNext={() => setStep(3)} onBack={() => setStep(1)} />}
-          {step === 3 && intake && <StakeholderMap intake={intake} contacts={contacts} loading={loading} onNext={() => setStep(4)} onBack={() => setStep(2)} />}
-          {step === 4 && intake && <WorkWithUs intake={intake} onBack={() => setStep(3)} onRestart={restart} />}
+          {step === 3 && intake && <StakeholderMap intake={intake} contacts={contacts} loading={loading} onNext={() => setStep(4)} onBack={() => setStep(2)} rep={rep} />}
+          {step === 4 && intake && <WorkWithUs intake={intake} onBack={() => setStep(3)} onRestart={restart} rep={rep} />}
         </div>
       </div>
       {step > 1 && intake && (
-        <Chatbot intake={intake} contacts={filterByMarket(contacts, intake.market)} />
+        <Chatbot intake={intake} contacts={filterByMarket(contacts, intake.market)} rep={rep} />
       )}
     </div>
   );
