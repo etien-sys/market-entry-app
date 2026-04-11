@@ -48,6 +48,11 @@ properties = {
     'Lead type':    {'select': {'name': 'New lead'}},
 }
 
+if goal:
+    properties['Deal name'] = {'rich_text': [{'text': {'content': goal[:2000]}}]}
+if industry:
+    properties['Industry'] = {'rich_text': [{'text': {'content': industry}}]}
+
 notion_market = MARKET_MAP.get(market)
 if notion_market:
     properties[' Market'] = {'select': {'name': notion_market}}
