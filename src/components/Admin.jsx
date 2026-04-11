@@ -65,10 +65,10 @@ function matchesFilter(c, { orgTypes, locations, raw }) {
   const basedIn = (c.basedIn || '').toLowerCase();
   const name = (c.name || '').toLowerCase();
   const website = (c.website || '').toLowerCase();
-  const email = (c.email || '').toLowerCase();
+  const contact = (c.contact || '').toLowerCase();
 
   if (orgTypes.length === 0 && locations.length === 0) {
-    return [name, orgType, industry, basedIn, website, email].some(f => f.includes(raw));
+    return [name, orgType, industry, basedIn, website, contact].some(f => f.includes(raw));
   }
   const orgMatch = orgTypes.length === 0 || orgTypes.some(ot => orgType.includes(ot.toLowerCase()));
   const locMatch = locations.length === 0 || locations.some(l => basedIn.toLowerCase().includes(l.toLowerCase()));
@@ -77,10 +77,39 @@ function matchesFilter(c, { orgTypes, locations, raw }) {
 
 // ── CSV export ─────────────────────────────────────────────────────────────────
 
+// Extract first email from the Associated Contact string
+function firstEmail(str) {
+  if (!str) return null;
+  const match = str.match(/[\w.+-]+@[\w-]+\.[a-z]{2,}/i);
+  return match ? match[0] : null;
+}
+
+function ContactCell({ value }) {
+  // Show first contact entry; truncate if long
+  const first = value.split(';')[0].trim();
+  const hasMore = value.split(';').length > 1;
+  const email = firstEmail(value);
+  return (
+    <div title={value} style={{ fontSize: '12px', color: '#6b6b85' }}>
+      {email ? (
+        <a href={`mailto:${email}`} style={{ color: '#34d399', textDecoration: 'none' }}
+          onMouseOver={e => { e.currentTarget.style.textDecoration = 'underline'; }}
+          onMouseOut={e => { e.currentTarget.style.textDecoration = 'none'; }}
+        >
+          {first.length > 36 ? first.slice(0, 36) + '…' : first}
+        </a>
+      ) : (
+        <span>{first.length > 36 ? first.slice(0, 36) + '…' : first}</span>
+      )}
+      {hasMore && <span style={{ color: '#3a3a52', marginLeft: '4px' }}>+{value.split(';').length - 1}</span>}
+    </div>
+  );
+}
+
 function exportCSV(contacts, label) {
-  const headers = ['Company', 'Org Type', 'Industry', 'Based In', 'Website', 'Email'];
+  const headers = ['Company', 'Org Type', 'Industry', 'Based In', 'Website', 'Associated Contact'];
   const rows = contacts.map(c =>
-    [c.name, c.orgType, c.industry, c.basedIn, c.website, c.email]
+    [c.name, c.orgType, c.industry, c.basedIn, c.website, c.contact]
       .map(v => `"${(v || '').replace(/"/g, '""')}"`)
       .join(',')
   );
@@ -199,7 +228,7 @@ function NetworkOverview({ contacts, onQuery }) {
 
 const SUGGESTIONS = [
   'all investors', 'investors in UAE', 'journalists in Germany',
-  'event organizers in CEE', 'startups in Poland', 'investors with email',
+  'event organizers in CEE', 'startups in Poland', 'investors with contact',
   'media contacts in DACH', 'service providers in Bulgaria', 'accelerators',
 ];
 
@@ -211,11 +240,11 @@ export default function Admin({ contacts, loading }) {
 
   const results = useMemo(() => {
     if (!query.trim()) return contacts;
-    // Special case: "with email"
-    if (query.toLowerCase().includes('with email') || query.toLowerCase().includes('has email')) {
-      const rest = query.toLowerCase().replace(/with email|has email/g, '').trim();
+    // Special case: "with contact" / "with email"
+    if (/with (contact|email)|has (contact|email)/.test(query.toLowerCase())) {
+      const rest = query.toLowerCase().replace(/with (contact|email)|has (contact|email)/g, '').trim();
       const base = rest ? contacts.filter(c => matchesFilter(c, parseQuery(rest))) : contacts;
-      return base.filter(c => c.email);
+      return base.filter(c => c.contact);
     }
     return contacts.filter(c => matchesFilter(c, parsed));
   }, [contacts, query, parsed]);
@@ -236,7 +265,7 @@ export default function Admin({ contacts, loading }) {
             Contact Database
           </h1>
           <p style={{ fontSize: '13px', color: '#4a4a65' }}>
-            {loading ? 'Loading…' : `${contacts.length.toLocaleString()} contacts · ${contacts.filter(c => c.email).length.toLocaleString()} with email`}
+            {loading ? 'Loading…' : `${contacts.length.toLocaleString()} contacts · ${contacts.filter(c => c.contact).length.toLocaleString()} with contact info`}
           </p>
         </div>
         <button
@@ -325,7 +354,7 @@ export default function Admin({ contacts, loading }) {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ background: '#111119', borderBottom: '2px solid #1e1e2e' }}>
-                  {['Company', 'Org Type', 'Industry', 'Based In', 'Email', 'Website'].map(h => (
+                  {['Company', 'Org Type', 'Industry', 'Based In', 'Associated Contact', 'Website'].map(h => (
                     <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: '10px', fontWeight: '700', color: '#4a4a65', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }}>
                       {h}
                     </th>
@@ -339,13 +368,8 @@ export default function Admin({ contacts, loading }) {
                     <td style={{ padding: '9px 14px', color: '#6b6b85', whiteSpace: 'nowrap' }}>{c.orgType}</td>
                     <td style={{ padding: '9px 14px', color: '#6b6b85' }}>{c.industry}</td>
                     <td style={{ padding: '9px 14px', color: '#6b6b85', whiteSpace: 'nowrap' }}>{c.basedIn}</td>
-                    <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>
-                      {c.email && (
-                        <a href={`mailto:${c.email}`} style={{ color: '#34d399', fontSize: '12px', textDecoration: 'none' }}
-                          onMouseOver={e => { e.currentTarget.style.textDecoration = 'underline'; }}
-                          onMouseOut={e => { e.currentTarget.style.textDecoration = 'none'; }}
-                        >{c.email}</a>
-                      )}
+                    <td style={{ padding: '9px 14px', maxWidth: '220px' }}>
+                      {c.contact && <ContactCell value={c.contact} />}
                     </td>
                     <td style={{ padding: '9px 14px' }}>
                       {c.website && (
