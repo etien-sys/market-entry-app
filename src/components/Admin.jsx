@@ -149,61 +149,53 @@ function firstEmail(str) {
   return match ? match[0] : null;
 }
 
+// Parse "Name (email)" or plain "email" into { name, email }
+function parsePart(p) {
+  const named = p.match(/^(.*?)\s*\(([^)]*@[^)]*)\)\s*$/);
+  if (named) return { name: named[1].trim(), email: named[2].trim() };
+  if (/^[\w.+-]+@[\w-]+\.[a-z]{2,}$/i.test(p)) return { name: null, email: p };
+  const email = firstEmail(p);
+  return { name: p.replace(/[\w.+-]+@[\w-]+\.[a-z]{2,}/i, '').replace(/[()<>]/g, '').trim() || p, email };
+}
+
+function ContactEntry({ name, email }) {
+  return (
+    <div style={{ lineHeight: '1.5' }}>
+      {name && <div style={{ fontSize: '11px', color: '#6b6b85' }}>{name.length > 28 ? name.slice(0, 28) + '…' : name}</div>}
+      {email
+        ? <a href={`mailto:${email}`} style={{ fontSize: '12px', color: '#34d399', textDecoration: 'none' }}
+            onMouseOver={e => { e.currentTarget.style.textDecoration = 'underline'; }}
+            onMouseOut={e => { e.currentTarget.style.textDecoration = 'none'; }}
+          >{email}</a>
+        : <span style={{ fontSize: '12px', color: '#4a4a65' }}>—</span>
+      }
+    </div>
+  );
+}
+
 function ContactCell({ value }) {
   const [expanded, setExpanded] = useState(false);
   const parts = value.split(';').map(s => s.trim()).filter(Boolean);
+  const parsed = parts.map(parsePart);
 
   if (expanded) {
     return (
-      <div>
-        {parts.map((p, i) => {
-          const email = firstEmail(p);
-          return (
-            <div key={i} style={{ fontSize: '12px', marginBottom: '3px', lineHeight: '1.4' }}>
-              {email ? (
-                <a href={`mailto:${email}`} style={{ color: '#34d399', textDecoration: 'none' }}
-                  onMouseOver={e => { e.currentTarget.style.textDecoration = 'underline'; }}
-                  onMouseOut={e => { e.currentTarget.style.textDecoration = 'none'; }}
-                  title={p}
-                >
-                  {p.length > 44 ? p.slice(0, 44) + '…' : p}
-                </a>
-              ) : (
-                <span style={{ color: '#6b6b85' }} title={p}>
-                  {p.length > 44 ? p.slice(0, 44) + '…' : p}
-                </span>
-              )}
-            </div>
-          );
-        })}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        {parsed.map((p, i) => <ContactEntry key={i} {...p} />)}
         <button onClick={() => setExpanded(false)}
-          style={{ marginTop: '2px', fontSize: '10px', color: '#3a3a52', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-          ▲ collapse
+          style={{ alignSelf: 'flex-start', marginTop: '2px', fontSize: '10px', color: '#3a3a52', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+          ▲ less
         </button>
       </div>
     );
   }
 
-  const first = parts[0] || '';
-  const hasMore = parts.length > 1;
-  const email = firstEmail(value);
-
   return (
-    <div style={{ fontSize: '12px', color: '#6b6b85' }}>
-      {email ? (
-        <a href={`mailto:${email}`} style={{ color: '#34d399', textDecoration: 'none' }}
-          onMouseOver={e => { e.currentTarget.style.textDecoration = 'underline'; }}
-          onMouseOut={e => { e.currentTarget.style.textDecoration = 'none'; }}
-          title={first}
-        >
-          {first.length > 36 ? first.slice(0, 36) + '…' : first}
-        </a>
-      ) : (
-        <span title={first}>{first.length > 36 ? first.slice(0, 36) + '…' : first}</span>
-      )}
-      {hasMore && (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+      <ContactEntry {...parsed[0]} />
+      {parts.length > 1 && (
         <button onClick={() => setExpanded(true)}
-          style={{ marginLeft: '5px', fontSize: '11px', color: PURPLE, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: '600' }}>
+          style={{ flexShrink: 0, marginTop: '2px', fontSize: '11px', color: '#c4befc', background: `${PURPLE}30`, border: `1px solid ${PURPLE}50`, borderRadius: '8px', padding: '1px 6px', cursor: 'pointer', fontWeight: '600', whiteSpace: 'nowrap' }}>
           +{parts.length - 1}
         </button>
       )}
@@ -315,10 +307,10 @@ export default function Admin({ contacts, loading }) {
   const [query, setQuery] = useState('');
   const [showOverview, setShowOverview] = useState(true);
 
-  // API key for AI search
+  // API key for AI search — auto-open the panel if no key is set yet
   const [apiKey, setApiKey] = useState(() => localStorage.getItem(API_KEY_STORAGE) || '');
-  const [showKeyInput, setShowKeyInput] = useState(false);
-  const [keyDraft, setKeyDraft] = useState('');
+  const [showKeyInput, setShowKeyInput] = useState(() => !localStorage.getItem(API_KEY_STORAGE));
+  const [keyDraft, setKeyDraft] = useState(() => localStorage.getItem(API_KEY_STORAGE) || '');
 
   // AI search state
   const [aiLoading, setAiLoading] = useState(false);
@@ -429,32 +421,47 @@ export default function Admin({ contacts, loading }) {
         </div>
       </div>
 
-      {/* API key input */}
+      {/* API key panel */}
       {showKeyInput && (
-        <div style={{ marginBottom: '20px', padding: '16px', background: '#111119', border: '1px solid #1e1e2e', borderRadius: '10px' }}>
-          <p style={{ fontSize: '12px', color: '#6b6b85', marginBottom: '8px' }}>
-            Anthropic API key — enables free-text semantic search across all contact fields. Stored locally in your browser.
-          </p>
+        <div style={{ marginBottom: '20px', padding: '18px 20px', background: '#0f0f1e', border: `1px solid ${PURPLE}40`, borderRadius: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+            <div>
+              <p style={{ fontSize: '13px', fontWeight: '700', color: '#c4befc', marginBottom: '3px' }}>
+                ✦ Enable AI semantic search
+              </p>
+              <p style={{ fontSize: '12px', color: '#4a4a65', margin: 0 }}>
+                Search with natural language — "climate tech founders in CEE", "who covers fintech", "B2B SaaS with enterprise clients". Claude expands your query across all fields including notes and industry. Stored in your browser only.
+              </p>
+            </div>
+            {apiKey && (
+              <button onClick={() => setShowKeyInput(false)}
+                style={{ marginLeft: '16px', fontSize: '12px', color: '#3a3a52', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
+                ✕
+              </button>
+            )}
+          </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <input
               type="password"
               value={keyDraft}
               onChange={e => setKeyDraft(e.target.value)}
-              placeholder="sk-ant-…"
-              style={{ flex: 1, padding: '9px 12px', background: '#0d0d16', border: '1px solid #252535', borderRadius: '8px', fontSize: '13px', color: '#e8e8f0', outline: 'none', fontFamily: 'monospace' }}
+              onKeyDown={e => { if (e.key === 'Enter' && keyDraft) { setApiKey(keyDraft); setShowKeyInput(false); } }}
+              placeholder="sk-ant-api03-…"
+              style={{ flex: 1, padding: '10px 13px', background: '#0d0d16', border: `1px solid ${PURPLE}40`, borderRadius: '8px', fontSize: '13px', color: '#e8e8f0', outline: 'none', fontFamily: 'monospace' }}
             />
             <button
-              onClick={() => { setApiKey(keyDraft); setShowKeyInput(false); }}
-              style={{ padding: '9px 18px', background: PURPLE, border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', color: '#fff', cursor: 'pointer' }}
+              onClick={() => { if (keyDraft) { setApiKey(keyDraft); setShowKeyInput(false); } }}
+              disabled={!keyDraft}
+              style={{ padding: '10px 20px', background: keyDraft ? PURPLE : '#1a1a2e', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '700', color: keyDraft ? '#fff' : '#3a3a52', cursor: keyDraft ? 'pointer' : 'default' }}
             >
-              Save
+              Enable
             </button>
             {apiKey && (
               <button
-                onClick={() => { setApiKey(''); localStorage.removeItem(API_KEY_STORAGE); setShowKeyInput(false); }}
-                style={{ padding: '9px 14px', background: 'transparent', border: '1px solid #1e1e2e', borderRadius: '8px', fontSize: '12px', color: '#3a3a52', cursor: 'pointer' }}
+                onClick={() => { setApiKey(''); localStorage.removeItem(API_KEY_STORAGE); setKeyDraft(''); }}
+                style={{ padding: '10px 14px', background: 'transparent', border: '1px solid #1e1e2e', borderRadius: '8px', fontSize: '12px', color: '#3a3a52', cursor: 'pointer' }}
               >
-                Remove
+                Remove key
               </button>
             )}
           </div>
