@@ -3,7 +3,7 @@ import { useState } from 'react';
 const PURPLE = '#7c6fe0';
 const PURPLE_DIM = 'rgba(124,111,224,0.15)';
 const GITHUB_TOKEN = import.meta.env.VITE_GH_TOK
-  ? import.meta.env.VITE_GH_TOK.replace(/[A-Za-z]/g, c => String.fromCharCode((c <= 'Z' ? 90 : 122) - (c.charCodeAt(0) - (c <= 'Z' ? 65 : 97) + 13) % 26))
+  ? import.meta.env.VITE_GH_TOK.replace(/[A-Za-z]/g, c => String.fromCharCode((c <= 'Z' ? 65 : 97) + (c.charCodeAt(0) - (c <= 'Z' ? 65 : 97) + 13) % 26))
   : null;
 const DISPATCH_URL = 'https://api.github.com/repos/etien-sys/market-entry-app/dispatches';
 
