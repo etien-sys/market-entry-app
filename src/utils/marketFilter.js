@@ -1,7 +1,18 @@
 const MARKET_LOCATIONS = {
-  UAE: ['uae', 'dubai', 'abu dhabi', 'sharjah'],
-  'Saudi Arabia': ['saudi arabia', 'riyadh', 'jeddah', 'ksa'],
-  CEE: ['sofia', 'bucharest', 'athens', 'zagreb', 'london', 'warsaw', 'prague', 'budapest'],
+  UAE: ['uae', 'united arab emirates', 'dubai', 'abu dhabi', 'sharjah'],
+  'Saudi Arabia': ['saudi arabia', 'riyadh', 'jeddah', 'ksa', 'saudi'],
+  CEE: [
+    // Countries
+    'albania', 'bosnia', 'bulgaria', 'croatia', 'cyprus', 'czechia', 'czech republic',
+    'estonia', 'greece', 'hungary', 'latvia', 'lithuania', 'moldova', 'montenegro',
+    'north macedonia', 'poland', 'romania', 'serbia', 'slovakia', 'slovenia',
+    'turkey', 'ukraine', 'austria', 'germany', 'france', 'italy', 'portugal',
+    'spain', 'switzerland', 'netherlands', 'belgium', 'luxembourg', 'ireland',
+    'united kingdom', 'uk', 'nordics', 'europe', 'cee', 'balkans',
+    // Cities
+    'sofia', 'bucharest', 'athens', 'zagreb', 'london', 'warsaw', 'prague', 'budapest',
+    'berlin', 'amsterdam', 'paris', 'milan', 'vienna', 'zurich', 'brussels',
+  ],
   All: [],
 };
 
@@ -31,9 +42,22 @@ export function getOrgColor(orgType) {
   return '#9CA3AF';
 }
 
-export const CATEGORY_FILTERS = ['All', 'Investor', 'Enterprise', 'Events', 'Startup', 'Service Provider', 'Media'];
+export const CATEGORY_FILTERS = ['All', 'Investor', 'Startup', 'Corporate', 'Events', 'Media', 'Service Provider'];
+
+const CATEGORY_KEYWORDS = {
+  Investor: ['investor', 'family office', 'high-net-worth'],
+  Startup: ['startup', 'scaleup', 'accelerator', 'incubator'],
+  Corporate: ['corporation', 'bank', 'enterprise'],
+  Events: ['event organizer', 'events'],
+  Media: ['media'],
+  'Service Provider': ['service provider'],
+};
 
 export function filterByCategory(contacts, category) {
   if (category === 'All') return contacts;
-  return contacts.filter((c) => c.orgType.toLowerCase().includes(category.toLowerCase()));
+  const keywords = CATEGORY_KEYWORDS[category] || [category.toLowerCase()];
+  return contacts.filter((c) => {
+    const ot = (c.orgType || '').toLowerCase();
+    return keywords.some((k) => ot.includes(k));
+  });
 }

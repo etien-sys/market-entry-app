@@ -18,7 +18,7 @@ const SERVICES = [
 function detectCategoryFromGoal(goal) {
   const g = (goal || '').toLowerCase();
   if (/investor|raise|fund|round|vc|capital|seed|angel|fundrais/.test(g)) return 'Investor';
-  if (/enterprise|corporate|b2b|client|customer|sales|revenue/.test(g)) return 'Enterprise';
+  if (/enterprise|corporate|b2b|client|customer|sales|revenue/.test(g)) return 'Corporate';
   if (/event|conference|stage|speak|gitex|expo/.test(g)) return 'Events';
   if (/media|press|coverage|journal|publish/.test(g)) return 'Media';
   if (/partner|startup|co-found|collaborat/.test(g)) return 'Startup';
@@ -28,35 +28,33 @@ function detectCategoryFromGoal(goal) {
 function getRelevanceReason(contact, intake) {
   const { stage, goal } = intake;
   const orgLower = (contact.orgType || '').toLowerCase();
-  const roleLower = (contact.role || '').toLowerCase();
   const goalLower = (goal || '').toLowerCase();
   const loc = contact.basedIn || 'the region';
+  const industry = contact.industry ? ` (${contact.industry})` : '';
 
-  if (orgLower.includes('investor')) {
-    if (stage === 'Idea' || stage === 'Early') return `Early-stage investor active in ${loc} — relevant if you're raising your first round.`;
-    if (stage === 'Growth') return `Growth-stage investor in ${loc} — can back your expansion with capital and connections.`;
-    return `Investor with a ${loc} portfolio — potential lead or co-investor for your round.`;
+  if (orgLower.includes('investor') || orgLower.includes('family office') || orgLower.includes('high-net-worth')) {
+    if (stage === 'Idea' || stage === 'Early') return `Early-stage investor active in ${loc}${industry} — relevant if you're raising your first round.`;
+    if (stage === 'Growth') return `Growth-stage investor in ${loc}${industry} — can back your expansion with capital and connections.`;
+    return `Investor with a ${loc} portfolio${industry} — potential lead or co-investor for your round.`;
   }
-  if (orgLower.includes('enterprise')) {
+  if (orgLower.includes('corporation') || orgLower.includes('bank')) {
     if (goalLower.includes('sales') || goalLower.includes('client') || goalLower.includes('customer') || goalLower.includes('revenue'))
-      return `${contact.role} at a target enterprise — a direct path to your first ${loc} client.`;
-    return `Senior buyer at an enterprise in ${loc} — potential client, pilot partner, or reference.`;
+      return `Corporate${industry} in ${loc} — a direct path to enterprise clients in this market.`;
+    return `Established corporate${industry} in ${loc} — potential client, pilot partner, or distribution channel.`;
   }
-  if (orgLower.includes('events')) {
-    if (roleLower.includes('partner') || roleLower.includes('sponsor'))
-      return `Controls speaking slots and sponsorship at ${contact.company} — one of the key deal-making events in ${loc}.`;
-    return `Runs ${contact.company} — getting on their stage puts you in front of buyers and investors in ${loc}.`;
+  if (orgLower.includes('event')) {
+    return `${contact.company} organises events in ${loc} — getting on their stage puts you in front of buyers and investors.`;
   }
-  if (orgLower.includes('startup') || orgLower.includes('scaleup'))
-    return `${stage === 'Idea' || stage === 'Early' ? 'Peer founder' : 'Operator'} who has navigated the ${loc} market — warm intro source, co-sell, or reference.`;
-  if (orgLower.includes('service'))
-    return `Local operator in ${loc} — can accelerate setup, navigate regulations, and open doors faster than you could alone.`;
+  if (orgLower.includes('startup') || orgLower.includes('scaleup') || orgLower.includes('accelerator')) {
+    return `${stage === 'Idea' || stage === 'Early' ? 'Peer startup' : 'Scaleup'}${industry} navigating ${loc} — warm intro source, co-sell partner, or market reference.`;
+  }
+  if (orgLower.includes('service')) {
+    return `Local service provider${industry} in ${loc} — can accelerate setup and open doors faster than you could alone.`;
+  }
   if (orgLower.includes('media')) {
-    if (goalLower.includes('media') || goalLower.includes('press') || goalLower.includes('brand'))
-      return `${contact.company} reaches the audience you're targeting — the right coverage here drives inbound.`;
-    return `${contact.company} covers the ${loc} market your clients and investors read.`;
+    return `${contact.company} covers the ${loc} market your clients and investors read${industry ? ` — ${contact.industry} focus` : ''}.`;
   }
-  return `Active in ${loc} — relevant to building your network for the goals you described.`;
+  return `Active in ${loc}${industry} — relevant to building your network for the goals you described.`;
 }
 
 function ContactCard({ contact, intake, isFirstLocked, showLockBanner, forceVisible }) {
@@ -84,35 +82,53 @@ function ContactCard({ contact, intake, isFirstLocked, showLockBanner, forceVisi
           }}>Premium</span>
         )}
 
-        <div style={{ marginBottom: '8px' }}>
-          <p style={{ fontSize: '14px', fontWeight: '700', color: '#e8e8f0', marginBottom: '2px' }}>{contact.name}</p>
-          <p style={{ fontSize: '12px', color: '#6b6b85' }}>{contact.role}</p>
+        <div style={{ marginBottom: '10px' }}>
+          <p style={{ fontSize: '14px', fontWeight: '700', color: '#e8e8f0', marginBottom: '6px' }}>
+            {isPaid ? <span style={{ filter: 'blur(5px)', userSelect: 'none' }}>Acme Corp International</span> : contact.name}
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+            {contact.orgType && (
+              <span style={{
+                fontSize: '11px', fontWeight: '600', color,
+                background: `${color}18`, borderRadius: '20px', padding: '2px 8px',
+              }}>
+                {contact.orgType}
+              </span>
+            )}
+            {contact.industry && (
+              <span style={{
+                fontSize: '11px', color: '#6b6b85',
+                background: '#17172a', border: '1px solid #252535',
+                borderRadius: '20px', padding: '2px 8px',
+              }}>
+                {contact.industry}
+              </span>
+            )}
+            {!isPaid && contact.basedIn && (
+              <span style={{
+                fontSize: '11px', color: '#6b6b85',
+                background: '#17172a', border: '1px solid #252535',
+                borderRadius: '20px', padding: '2px 8px',
+              }}>
+                📍 {contact.basedIn}
+              </span>
+            )}
+          </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
-          <span style={{
-            fontSize: '13px', fontWeight: '500', color: '#c8c8d8',
-            filter: isPaid ? 'blur(5px)' : 'none',
-            userSelect: isPaid ? 'none' : 'auto',
-          }}>
-            {isPaid ? 'Acme Corp International' : contact.company}
-          </span>
-          {!isPaid && contact.basedIn && (
-            <span style={{
-              fontSize: '11px', color: '#6b6b85',
-              background: '#17172a', border: '1px solid #252535',
-              borderRadius: '20px', padding: '2px 8px', fontWeight: '500',
-            }}>
-              📍 {contact.basedIn}
-            </span>
-          )}
-          <span style={{
-            fontSize: '11px', fontWeight: '600', color,
-            background: `${color}18`, borderRadius: '20px', padding: '2px 8px',
-          }}>
-            {contact.orgType || 'Other'}
-          </span>
-        </div>
+        {!isPaid && contact.website && (
+          <div style={{ marginBottom: '10px' }}>
+            <a href={contact.website} target="_blank" rel="noreferrer" style={{
+              fontSize: '11px', color: '#7c6fe0', textDecoration: 'none',
+              wordBreak: 'break-all',
+            }}
+              onMouseOver={e => { e.currentTarget.style.textDecoration = 'underline'; }}
+              onMouseOut={e => { e.currentTarget.style.textDecoration = 'none'; }}
+            >
+              {contact.website.replace(/^https?:\/\//, '')}
+            </a>
+          </div>
+        )}
 
         <div style={{ borderTop: '1px solid #1a1a28', padding: '10px 0 12px' }}>
           <span style={{
@@ -127,12 +143,6 @@ function ContactCard({ contact, intake, isFirstLocked, showLockBanner, forceVisi
             {relevance}
           </span>
         </div>
-
-        {!isPaid && contact.notes && (
-          <div style={{ borderTop: '1px solid #1a1a28', padding: '10px 0 12px' }}>
-            <p style={{ fontSize: '11px', color: '#3a3a52', lineHeight: '1.55' }}>{contact.notes}</p>
-          </div>
-        )}
       </div>
 
       {isFirstLocked && showLockBanner && (
