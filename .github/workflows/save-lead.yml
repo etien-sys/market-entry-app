@@ -1,0 +1,16 @@
+name: Save Lead to Notion
+
+on:
+  repository_dispatch:
+    types: [save-lead]
+
+jobs:
+  save:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write lead to Notion
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          LEAD_JSON: ${{ toJson(github.event.client_payload) }}
+        run: python3 scripts/save-lead.py

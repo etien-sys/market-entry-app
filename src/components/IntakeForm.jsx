@@ -2,7 +2,8 @@ import { useState } from 'react';
 
 const PURPLE = '#7c6fe0';
 const PURPLE_DIM = 'rgba(124,111,224,0.15)';
-const LEAD_ENDPOINT = import.meta.env.VITE_LEAD_ENDPOINT; // set in .env to enable submission
+const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN;
+const DISPATCH_URL = 'https://api.github.com/repos/etien-sys/market-entry-app/dispatches';
 
 const MARKETS = [
   { id: 'UAE', label: 'UAE', sub: 'Dubai · Abu Dhabi' },
@@ -95,21 +96,19 @@ export default function IntakeForm({ onComplete }) {
 
     localStorage.setItem('market-entry-intake', JSON.stringify(data));
 
-    if (LEAD_ENDPOINT) {
+    if (GITHUB_TOKEN) {
       try {
-        await fetch(LEAD_ENDPOINT, {
+        await fetch(DISPATCH_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Authorization': `Bearer ${GITHUB_TOKEN}`,
+            'Accept': 'application/vnd.github+json',
+            'Content-Type': 'application/json',
+            'X-GitHub-Api-Version': '2022-11-28',
+          },
           body: JSON.stringify({
-            name: data.name || '(not provided)',
-            email: data.email || '(not provided)',
-            companyName: data.companyName || '(not provided)',
-            market: data.market,
-            industry: data.industry,
-            location: data.location,
-            goal: data.goal,
-            company: data.companyIntro,
-            submittedAt: data.submittedAt,
+            event_type: 'save-lead',
+            client_payload: data,
           }),
         });
       } catch (_) {
