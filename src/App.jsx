@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fetchContacts } from './utils/csvParser';
+import { filterByMarket } from './utils/marketFilter';
 import Background from './components/Background';
 import StepIndicator from './components/StepIndicator';
 import IntakeForm from './components/IntakeForm';
@@ -60,7 +61,9 @@ export default function App() {
           {step === 4 && intake && <WorkWithUs intake={intake} onBack={() => setStep(3)} onRestart={restart} />}
         </div>
       </div>
-      {step > 1 && intake && <Chatbot intake={intake} contacts={contacts} />}
+      {step > 1 && intake && (
+        <Chatbot intake={intake} contacts={filterByMarket(contacts, intake.market)} />
+      )}
     </div>
   );
 }

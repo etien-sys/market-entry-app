@@ -5,22 +5,28 @@ const MARKET_CONTEXT = {
     timingDetail: 'Avoid Ramadan for first meetings. The two strongest deal windows are Sep–Nov and Feb–Mar. Summer (Jun–Aug) slows down significantly.',
     outreachDetail: 'Cold outreach converts poorly in the UAE. Decision-makers respond to warm intros from people in their trust network — budget one warm intro to open every account you want.',
   },
-  'Saudi Arabia': {
-    setupDetail: 'A local entity or partner (Saudi national or registered company) is required for most enterprise and government sales. Regional HQ Program status gives tax incentives if you\'re committing long-term.',
-    eventsDetail: 'LEAP (Feb) is the flagship tech event. VIS (investment summit, Oct) attracts capital. Cityscape and HIMSS attract vertical-specific enterprise buyers.',
-    timingDetail: 'Ramadan and summer (Jun–Aug) slow everything down. Feb–Mar and Sep–Nov are your best windows for closing. Government buyers are tied to H1 budget cycles.',
-    outreachDetail: 'Relationships precede deals by months in Saudi Arabia. Identify a local champion inside your target account early — they become your internal advocate through the procurement process.',
-  },
   CEE: {
     setupDetail: 'CEE is not one market. Bulgaria, Romania, and Greece each have distinct regulatory environments. Pick one anchor city first — Sofia and Bucharest have the most active startup ecosystems — then expand.',
     eventsDetail: 'How2Web (Sofia), Techsylvania (Cluj), and Athens Startup Week are the best founder-to-founder and founder-to-investor events. For enterprise buyers, vertical trade shows in each country differ.',
     timingDetail: 'Business culture is more direct than the Gulf. Meetings convert faster, but procurement cycles in enterprise are still 3–6 months. Q2 and Q3 are the most active deal periods.',
     outreachDetail: 'LinkedIn outreach works better in CEE than in the Gulf. Local accelerators and co-working spaces (Betahaus Sofia, Impact Hub Bucharest) are high-leverage for warm introductions.',
   },
+  DACH: {
+    setupDetail: 'Germany is the anchor market in DACH — a GmbH gives full credibility with enterprise buyers. Austria and Switzerland move faster and have less bureaucracy. A common approach: pilot in Austria or Switzerland, then use that reference to enter Germany.',
+    eventsDetail: 'NOAH Conference (Berlin), OMR Festival (Hamburg, May), and DLD Munich are the highest-signal events for tech and investor access. Web Summit (Lisbon, Nov) also draws heavy DACH attendance.',
+    timingDetail: 'German procurement cycles run 3–6 months and are process-heavy — budget accordingly. August is nearly dead. Q1 and Q4 are the strongest windows for new business conversations. Swiss and Austrian buyers move faster.',
+    outreachDetail: 'DACH buyers value precision and credibility over personality. Case studies from recognisable logos open doors more than any pitch deck. Localised materials in German signal commitment and convert better for mid-market accounts.',
+  },
+  US: {
+    setupDetail: 'Delaware C-Corp is the default for fundraising and US enterprise sales. If you\'re not raising from US VCs, an LLC may be sufficient. Set up a US phone number and address early — it signals you\'re serious about the market.',
+    eventsDetail: 'TechCrunch Disrupt, Collision, and SaaStr Annual are high-leverage events for B2B SaaS. Vertical conferences outperform general tech events for enterprise pipeline — identify the 2–3 events your ICP actually attends.',
+    timingDetail: 'US buyers move fast but churn high. Q1 is budget season — get in front of buyers in November–December when budgets are being set. August is slow; September resets everything. Expect compressed sales cycles vs. Europe.',
+    outreachDetail: 'Cold outreach works in the US — but only if it\'s hyper-personalised. A short, direct email referencing a specific pain beats a polished deck. Warm intros from mutual connections still convert 5× better than cold.',
+  },
   All: {
     setupDetail: 'Entering multiple markets simultaneously requires a sequenced approach. Choose one anchor market first based on where your ICP density is highest, then use those credentials to enter the next.',
     eventsDetail: 'Cross-market events like Web Summit (Lisbon, Nov) and Slush (Helsinki, Nov) attract buyers and investors from all your target markets — high leverage for a multi-market strategy.',
-    timingDetail: 'Plan your calendar around the key deal windows in each market: UAE Q4, Saudi Feb–Mar, CEE Q2–Q3. Don\'t run parallel market sprints — sequence them.',
+    timingDetail: 'Plan your calendar around the key deal windows in each market: UAE Q4, CEE Q2–Q3, DACH Q1/Q4, US year-round. Don\'t run parallel market sprints — sequence them.',
     outreachDetail: 'A warm intro in one market often unlocks the next. Ask every contact for a cross-market referral — "Who do you know in [next market]?" extends your network without starting from zero.',
   },
 };
@@ -50,21 +56,24 @@ function sectorNote(sector, market) {
   const notes = {
     drone: {
       UAE: 'Drone operators need GCAA certification before commercial flights. Build this into your setup timeline — it takes 4–8 weeks.',
-      'Saudi Arabia': 'GACA governs drone operations. Government and defense applications are the strongest near-term market; NEOM projects are actively sourcing drone vendors.',
       CEE: 'EASA regulations apply across most CEE markets. Romania and Bulgaria both have active drone use-cases in agriculture and border monitoring.',
+      DACH: 'LBA (Germany) regulates drone operations. Agriculture, infrastructure inspection, and logistics are the strongest commercial use-cases in DACH.',
+      US: 'FAA Part 107 certification is required for commercial operations. Enterprise drone demand is strongest in agriculture, construction, and public safety.',
     },
     fintech: {
       UAE: 'DIFC and ADGM each have regulatory sandbox programs — apply early, it signals commitment to local regulators and opens doors to licensed banks.',
-      'Saudi Arabia': 'SAMA (central bank) and CMA both run fintech sandboxes. Saudi Payments and stc pay are the key enterprise integration partners.',
       CEE: 'PSD2 compliance is table stakes across EU CEE markets. BNR (Romania), BNB (Bulgaria), and Bank of Greece are your primary regulatory relationships.',
+      DACH: 'BaFin (Germany) and FINMA (Switzerland) are your primary regulators. Germany\'s open banking ecosystem and Switzerland\'s crypto-friendly regulations create distinct entry paths.',
+      US: 'State-by-state money transmitter licensing is complex — start with a limited geography or use a Banking-as-a-Service partner to move faster.',
     },
     AI: {
       UAE: 'UAE has a national AI strategy and a dedicated AI minister. Frame your pitch around the national agenda — it accelerates government procurement.',
-      'Saudi Arabia': 'SDAIA (Saudi Data and AI Authority) is the central government body. Vision 2030 digital transformation programs are actively buying AI solutions.',
       CEE: 'EU AI Act compliance is now a requirement for enterprise sales. Frame it as a feature, not a constraint — buyers are asking for it.',
+      DACH: 'German enterprise buyers are cautious on AI — data privacy (GDPR), explainability, and on-premise deployment options are the top three buying criteria.',
+      US: 'US enterprise AI adoption is fastest globally. Focus on ROI metrics and integration with existing stacks (Salesforce, ServiceNow, Workday) over raw capability.',
     },
   };
-  return notes[sector]?.[market] || notes[sector]?.['UAE'] || null;
+  return notes[sector]?.[market] || null;
 }
 
 function buildSteps(intake) {
