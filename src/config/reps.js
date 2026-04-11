@@ -12,13 +12,21 @@ export const REPS = {
     name: 'Teodor',
     focus: 'Partnerships & Growth',
     bio: 'Helps founders build the right partnerships and navigate new markets with confidence.',
+    color: '#60a5fa',
+    calendly: 'https://calendly.com',
+  },
+  etien: {
+    initials: 'ET',
+    name: 'Etien',
+    focus: 'Strategy & Investors',
+    bio: 'Helps founders sharpen their story and get in front of the right investors and partners.',
     color: '#34d399',
     calendly: 'https://calendly.com',
   },
 };
 
-// Default when no ?rep= param — show both
-export const DEFAULT_REPS = [REPS.slavena, REPS.teodor];
+// Default: Slavena + Etien (no ?rep= param)
+export const DEFAULT_REPS = [REPS.slavena, REPS.etien];
 
 export function getRepFromUrl() {
   const param = new URLSearchParams(window.location.search).get('rep');

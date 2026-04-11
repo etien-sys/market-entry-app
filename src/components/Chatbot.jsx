@@ -5,7 +5,7 @@ const PURPLE_DIM = 'rgba(124,111,224,0.15)';
 const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
 
 function buildSystemPrompt(intake, contacts, rep) {
-  const repName = rep ? rep.name : 'Slavena and Etien';
+  const repName = rep ? `${rep.name} and Etien` : 'Slavena and Etien';
   const { market, goal, industry, location, companyIntro } = intake;
   const contactLines = (contacts || [])
     .slice(0, 20)

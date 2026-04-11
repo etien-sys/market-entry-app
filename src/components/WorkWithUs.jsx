@@ -1,4 +1,4 @@
-import { DEFAULT_REPS } from '../config/reps';
+import { DEFAULT_REPS, REPS } from '../config/reps';
 
 const PURPLE = '#7c6fe0';
 
@@ -12,7 +12,7 @@ const SERVICES = [
 ];
 
 export default function WorkWithUs({ intake, onBack, onRestart, rep }) {
-  const advisors = rep ? [rep] : DEFAULT_REPS;
+  const advisors = rep ? [rep, REPS.etien] : DEFAULT_REPS;
   return (
     <div style={{ padding: '40px 24px 60px' }}>
       <div style={{ marginBottom: '36px' }}>

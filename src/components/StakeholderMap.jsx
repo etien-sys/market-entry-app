@@ -316,7 +316,7 @@ function GuidanceBanner({ totalCount, onNext, repName }) {
 }
 
 export default function StakeholderMap({ intake, contacts, loading, onNext, onBack, rep }) {
-  const repName = rep ? rep.name : 'Slavena & Etien';
+  const repName = rep ? `${rep.name} & Etien` : 'Slavena & Etien';
   // Pre-select category based on stated goal
   const [category, setCategory] = useState(() => detectCategoryFromGoal(intake.goal));
   const isMobile = useIsMobile();
