@@ -96,8 +96,12 @@ def find(props, *names):
 
 print(f'Fetching schema for DB {DB}…')
 schema = notion_get(f'/databases/{DB}')
-prop_names = list(schema.get('properties', {}).keys())
+schema_props = schema.get('properties', {})
+prop_names = list(schema_props.keys())
 print(f'  Properties found: {prop_names}')
+# Print types too so we can see what kind each property is
+for k, v in schema_props.items():
+    print(f'    {k!r}: {v.get("type")}')
 
 # ── Fetch all pages ───────────────────────────────────────────────────────────
 
@@ -116,6 +120,13 @@ while True:
 
 print(f'  {len(pages)} pages fetched')
 
+# Print first page's raw property values so we can see the structure
+if pages:
+    print('  First page properties (for debugging):')
+    for k, v in pages[0]['properties'].items():
+        val = extract(v)
+        print(f'    {k!r} ({v.get("type")}): {val!r}')
+
 # ── Parse pages ───────────────────────────────────────────────────────────────
 
 warm_contacts = []
@@ -133,7 +144,8 @@ for page in pages:
             break
 
     # Try to find a dedicated company field; fall back to title if nothing found
-    company = extract(find(p, 'Company', 'Company name', 'Organization', 'Firm', 'Account')).strip()
+    company = extract(find(p, 'Company', 'Company name', 'Organization', 'Firm',
+                           'Account', 'Account Name', 'Contact company')).strip()
 
     # The title might BE the company name (some DBs are structured that way)
     # Use title as person name if a separate company field was found, else as company
@@ -142,6 +154,14 @@ for page in pages:
     else:
         company = title_val             # title = company name
         person_from_title = ''
+
+    # Last resort: use any non-empty text value from the page as the company name
+    if not company:
+        for prop_val in p.values():
+            val = extract(prop_val).strip()
+            if val and len(val) > 1:
+                company = val
+                break
 
     if not company:
         skipped += 1
