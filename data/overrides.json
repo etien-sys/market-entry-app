@@ -1,0 +1,9 @@
+{
+  "_comment": "Manual corrections keyed by lowercase company name. Fields: orgType, industry, basedIn, tier.",
+  "_orgTypes": ["Investor","Family Office","High-Net-Worth Individual","Product Startup","Product Scaleup","Corporation","Bank","Media","Event Organizer","Service Provider","Accelerator/ Incubator","NGO","Policymaker/ Public Sector Agency","Research","Other"],
+
+  "the c-suite podcast": { "orgType": "Media", "industry": "Media" },
+  "wired island international": { "orgType": "Service Provider", "industry": "PR & Communications" },
+  "kardi ai": { "industry": "AI / ML" },
+  "dreamix": { "orgType": "Service Provider", "industry": "Software Development" }
+}
