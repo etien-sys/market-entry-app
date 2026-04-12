@@ -87,11 +87,15 @@ Return ONLY valid JSON — an array matching the input order, no markdown fences
 
 For each item return:
 {{
-  "orgType":    one of {json.dumps(ORG_TYPES)},
-  "industry":   short industry label (e.g. "Fintech", "SaaS", "Healthcare", "Real Estate", "Media"),
-  "location":   best-guess country (e.g. "UAE", "UK", "Bulgaria", "Germany") — use "" if truly unknown,
+  "orgType":    one of {json.dumps(ORG_TYPES)}, or "" if not sure,
+  "industry":   short industry label (e.g. "Fintech", "SaaS", "Media", "AI / ML"), or "" if not sure,
+  "location":   country or city (e.g. "UAE", "Germany"), or "" if not sure,
   "confidence": "high" | "medium" | "low"
 }}
+
+IMPORTANT — only fill in what you are confident about. Leave fields as "" when in doubt.
+A podcast or newsletter is always Media. A PR/comms firm is always Service Provider.
+"AI" in the company name strongly suggests AI / ML industry.
 
 Rules:
 - Use "Product Startup" for early-stage companies, "Product Scaleup" for growth-stage ones
@@ -165,7 +169,8 @@ with open(OUTPUT_CSV, 'w', newline='', encoding='utf-8') as f:
 
 def to_contact(c):
     name = f"{c['first_name']} {c['last_name']}".strip() or c['company']
-    org_type = c.get('orgType', 'Other')
+    low = c.get('confidence', 'low') == 'low'
+    org_type = '' if low else c.get('orgType', '')
     notes_parts = [
         'LinkedIn connection',
         c['connected_on'] and f"Connected: {c['connected_on']}",
@@ -176,7 +181,7 @@ def to_contact(c):
         'company':  c['company'],
         'basedIn':  c.get('location', ''),
         'orgType':  org_type,
-        'industry': c.get('industry', ''),
+        'industry': '' if low else c.get('industry', ''),
         'website':  c['url'],
         'contact':  c['email'],
         'notes':    ' · '.join(p for p in notes_parts if p),
