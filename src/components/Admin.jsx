@@ -76,11 +76,21 @@ const LOCATION_MAP = {
   'europe': ['Germany', 'France', 'United Kingdom', 'Italy', 'Spain', 'The Netherlands', 'Belgium', 'Austria', 'Switzerland', 'Poland', 'Romania', 'Bulgaria', 'Greece', 'Czechia', 'Hungary', 'Croatia', 'Portugal', 'Ireland', 'Nordics', 'Luxembourg'],
 };
 
+// Match a keyword as a whole word (surrounded by spaces or at string boundaries).
+// Prevents "media" in "social media analytics" from triggering when the user
+// types a company name like "TechMedia Corp".
+function wordMatch(text, word) {
+  // Multi-word phrases: substring is fine (e.g. "family office")
+  if (word.includes(' ')) return text.includes(word);
+  // Single words: require word boundary so "media" doesn't match inside "multimedia"
+  return new RegExp(`(^|[^a-z])${word}([^a-z]|$)`).test(text);
+}
+
 function parseQuery(q) {
   const lower = q.toLowerCase();
   const orgTypes = [];
   for (const p of ORG_PATTERNS) {
-    if (p.words.some(w => lower.includes(w))) orgTypes.push(...p.orgTypes);
+    if (p.words.some(w => wordMatch(lower, w))) orgTypes.push(...p.orgTypes);
   }
   const locations = [];
   for (const key of Object.keys(LOCATION_MAP).sort((a, b) => b.length - a.length)) {
@@ -94,14 +104,19 @@ function parseQuery(q) {
 
 function matchesFilter(c, { orgTypes, locations, raw }) {
   const orgType = (c.orgType || '').toLowerCase();
-  const industry = (c.industry || '').toLowerCase();
   const basedIn = (c.basedIn || '').toLowerCase();
-  const name = (c.name || '').toLowerCase();
+  // Search across name AND company (distinct for notion contacts where name = person, company = org)
+  const name    = (c.name || '').toLowerCase();
+  const company = (c.company || '').toLowerCase();
+  const role    = (c.role || '').toLowerCase();
+  const notes   = (c.notes || '').toLowerCase();
   const website = (c.website || '').toLowerCase();
   const contact = (c.contact || '').toLowerCase();
 
   if (orgTypes.length === 0 && locations.length === 0) {
-    return [name, orgType, industry, basedIn, website, contact].some(f => f.includes(raw));
+    // Raw text: search identity/contact fields only — NOT orgType or industry
+    // (those are filter dimensions, not free-text content)
+    return [name, company, role, notes, website, contact, basedIn].some(f => f.includes(raw));
   }
   const orgMatch = orgTypes.length === 0 || orgTypes.some(ot => orgType.includes(ot.toLowerCase()));
   const locMatch = locations.length === 0 || locations.some(l => basedIn.toLowerCase().includes(l.toLowerCase()));

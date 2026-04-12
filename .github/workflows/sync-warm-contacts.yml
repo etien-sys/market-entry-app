@@ -13,6 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Sync warm contacts from Notion
@@ -32,5 +33,5 @@ jobs:
             echo "No changes — warm contacts are up to date"
           else
             git commit -m "chore: sync warm contacts from Notion ($(date -u +%Y-%m-%d))"
-            git push origin HEAD:${{ github.ref_name }}
+            git push
           fi

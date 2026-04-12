@@ -52,7 +52,12 @@ def notion_post(path, body=None):
         with urllib.request.urlopen(req, timeout=30) as r:
             return json.loads(r.read())
     except urllib.error.HTTPError as e:
-        raise SystemExit(f'Notion API error {e.code}: {e.read().decode()}')
+        body = e.read().decode()
+        print(f'Notion API error {e.code} on {path}: {body}', file=sys.stderr)
+        if e.code in (401, 403):
+            print('→ Check that the Notion integration has access to this database.', file=sys.stderr)
+            print('  In Notion: open the database → ⋯ menu → Connections → add your integration.', file=sys.stderr)
+        raise SystemExit(e.code)
 
 
 def extract(prop):
