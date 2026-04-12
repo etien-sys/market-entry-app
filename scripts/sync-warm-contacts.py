@@ -92,38 +92,64 @@ def find(props, *names):
     return {}
 
 
-# ── Discover schema ───────────────────────────────────────────────────────────
+# ── Resolve database ID ───────────────────────────────────────────────────────
+# The URL may point to a PAGE that contains an embedded database rather than to
+# the database itself. Try the configured ID first; if it returns 0 results,
+# search for all databases the integration can access and pick the best match.
 
-print(f'Fetching schema for DB {DB}…')
-schema = notion_get(f'/databases/{DB}')
-schema_props = schema.get('properties', {})
-prop_names = list(schema_props.keys())
-print(f'  Properties found: {prop_names}')
-# Print types too so we can see what kind each property is
-for k, v in schema_props.items():
-    print(f'    {k!r}: {v.get("type")}')
+def query_db(db_id):
+    """Return all pages from a database, or [] if the ID is wrong."""
+    results, cursor = [], None
+    while True:
+        body = {'page_size': 100}
+        if cursor:
+            body['start_cursor'] = cursor
+        try:
+            res = notion_post(f'/databases/{db_id}/query', body)
+        except SystemExit:
+            return None   # API error — wrong ID or no access
+        if res.get('object') == 'error':
+            return None
+        results.extend(res.get('results', []))
+        if not res.get('has_more'):
+            break
+        cursor = res['next_cursor']
+    return results
 
-# ── Fetch all pages ───────────────────────────────────────────────────────────
+print(f'Querying DB {DB}…')
+pages = query_db(DB)
 
-print('Fetching pages…')
-pages, cursor = [], None
-while True:
-    body = {'page_size': 100}
-    if cursor:
-        body['start_cursor'] = cursor
-    res = notion_post(f'/databases/{DB}/query', body)
-    pages.extend(res.get('results', []))
-    if not res.get('has_more'):
-        break
-    cursor = res['next_cursor']
-    print(f'  {len(pages)} pages…', end='\r', flush=True)
+if pages is None or len(pages) == 0:
+    reason = 'returned no results' if pages is not None else 'returned an error'
+    print(f'  Configured DB ID {reason}. Searching for accessible databases…')
 
-print(f'  {len(pages)} pages fetched')
+    # Search all databases the integration can see
+    search_res = notion_post('/search', {
+        'filter': {'value': 'database', 'property': 'object'},
+        'page_size': 50,
+    })
+    dbs = search_res.get('results', [])
+    print(f'  Found {len(dbs)} accessible database(s):')
+    for d in dbs:
+        title = ''.join(t['plain_text'] for t in d.get('title', []))
+        print(f'    ID={d["id"]}  title={title!r}')
+        # Try each database until we find one with data
+        if pages is not None and len(pages) == 0:
+            candidate = query_db(d['id'])
+            if candidate:
+                print(f'  → Using database {d["id"]!r} ({title!r}) with {len(candidate)} pages')
+                pages = candidate
+                break
+    if not pages:
+        print('No accessible database with content found. Check integration permissions.')
+        pages = []
+else:
+    print(f'  {len(pages)} pages fetched')
 
-# Print first page's raw property values so we can see the structure
+# Print first page properties so we can verify the field mapping
 if pages:
-    print('  First page properties (for debugging):')
-    for k, v in pages[0]['properties'].items():
+    print('  First page field mapping (for debugging):')
+    for k, v in list(pages[0]['properties'].items())[:15]:
         val = extract(v)
         print(f'    {k!r} ({v.get("type")}): {val!r}')
 
