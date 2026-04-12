@@ -1,40 +1,26 @@
 #!/usr/bin/env python3
 """Sync warm contacts from Notion CRM database into public/contacts.json.
 
-Replaces all existing 'notion-warm' source entries with fresh data, then
-preserves everything else (linkedin, events, notion, etc.).
+Mirrors the same pattern as sync-events.py.
+Replaces all 'notion-warm' source entries; preserves everything else.
+Also propagates connection=warm to existing contacts at the same company.
 
-Also marks any matching existing contacts (by company name) as connection=warm
-so warm badges appear on LinkedIn-sourced entries too.
-
-Usage:
-  NOTION_API_KEY=sk-... python3 scripts/sync-warm-contacts.py
-
-Database: https://www.notion.so/2889a7b410ae81f39a23c065ab103614
-Properties expected:
-  Name / Company  → company + name
-  Industry        → industry
-  Market          → basedIn
-  Email           → contact (email)
-  Person          → role / contact person name
-  Lead Owner      → introducedBy (person who owns the relationship)
-  (any Connection/Warmth property is forced to "warm")
+Usage:  NOTION_API_KEY=... python3 scripts/sync-warm-contacts.py
+DB:     https://www.notion.so/2889a7b410ae81f39a23c065ab103614
 """
 
 import json, os, sys, urllib.request, urllib.error
 from pathlib import Path
 
 KEY = os.environ.get('NOTION_API_KEY')
-if not KEY:
-    sys.exit('Error: NOTION_API_KEY not set')
-
-DB_ID  = '2889a7b410ae81f39a23c065ab103614'
+DB  = '2889a7b410ae81f39a23c065ab103614'
 OUTPUT = Path(__file__).resolve().parent.parent / 'public' / 'contacts.json'
 
-PAID_TYPES = {'Investor', 'Family Office', 'High-Net-Worth Individual'}
+if not KEY:
+    raise SystemExit('Error: NOTION_API_KEY not set')
 
+PAID = {'Investor', 'Family Office', 'High-Net-Worth Individual'}
 
-# ── Notion helpers ─────────────────────────────────────────────────────────────
 
 def notion_post(path, body=None):
     data = json.dumps(body or {}).encode()
@@ -52,16 +38,33 @@ def notion_post(path, body=None):
         with urllib.request.urlopen(req, timeout=30) as r:
             return json.loads(r.read())
     except urllib.error.HTTPError as e:
-        body = e.read().decode()
-        print(f'Notion API error {e.code} on {path}: {body}', file=sys.stderr)
+        body_text = e.read().decode()
+        print(f'Notion API error {e.code}: {body_text}', file=sys.stderr)
         if e.code in (401, 403):
-            print('→ Check that the Notion integration has access to this database.', file=sys.stderr)
-            print('  In Notion: open the database → ⋯ menu → Connections → add your integration.', file=sys.stderr)
-        raise SystemExit(e.code)
+            print('→ Ensure the integration is connected to this database in Notion.', file=sys.stderr)
+        raise SystemExit(1)
+
+
+def notion_get(path):
+    req = urllib.request.Request(
+        f'https://api.notion.com/v1{path}',
+        headers={
+            'Authorization': f'Bearer {KEY}',
+            'Notion-Version': '2022-06-28',
+        },
+        method='GET',
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        body_text = e.read().decode()
+        print(f'Notion API error {e.code}: {body_text}', file=sys.stderr)
+        raise SystemExit(1)
 
 
 def extract(prop):
-    """Extract a plain string value from any Notion property type."""
+    """Extract plain text from any Notion property."""
     if not prop:
         return ''
     t = prop.get('type', '')
@@ -72,114 +75,92 @@ def extract(prop):
     if t == 'phone_number': return prop.get('phone_number') or ''
     if t == 'select':       return (prop.get('select') or {}).get('name', '')
     if t == 'multi_select': return ', '.join(s['name'] for s in prop.get('multi_select', []))
-    if t == 'people':       return ', '.join(p.get('name', '') for p in prop.get('people', []))
-    if t == 'relation':     return ''  # skip relations
+    if t == 'people':       return '; '.join(p.get('name', '') for p in prop.get('people', []))
     if t == 'formula':
         f = prop.get('formula', {})
-        return f.get('string') or str(f.get('number', '')) or ''
+        return f.get('string') or ''
     return ''
 
 
-def first_email(prop):
-    """Return first email found in an email or rich_text property."""
-    raw = extract(prop)
-    if not raw:
-        return ''
-    # could be "Name (email@x.com); ..." format from old sync
-    for part in raw.replace(';', ',').split(','):
-        part = part.strip()
-        if '@' in part:
-            # strip surrounding parens if present
-            if '(' in part and ')' in part:
-                part = part[part.index('(') + 1:part.index(')')]
-            return part.strip()
-    return raw
+def find(props, *names):
+    """Find first matching property (case-insensitive)."""
+    lower = {k.lower(): v for k, v in props.items()}
+    for n in names:
+        v = lower.get(n.lower())
+        if v is not None:
+            return v
+    return {}
 
 
-# ── Fetch all pages from the warm contacts database ───────────────────────────
+# ── Discover schema ───────────────────────────────────────────────────────────
 
-print(f'Fetching warm contacts from Notion DB {DB_ID}…')
+print(f'Fetching schema for DB {DB}…')
+schema = notion_get(f'/databases/{DB}')
+prop_names = list(schema.get('properties', {}).keys())
+print(f'  Properties found: {prop_names}')
+
+# ── Fetch all pages ───────────────────────────────────────────────────────────
+
+print('Fetching pages…')
 pages, cursor = [], None
 while True:
     body = {'page_size': 100}
     if cursor:
         body['start_cursor'] = cursor
-    res = notion_post(f'/databases/{DB_ID}/query', body)
+    res = notion_post(f'/databases/{DB}/query', body)
     pages.extend(res.get('results', []))
     if not res.get('has_more'):
         break
     cursor = res['next_cursor']
-    print(f'  {len(pages)} pages so far…', end='\r', flush=True)
+    print(f'  {len(pages)} pages…', end='\r', flush=True)
 
 print(f'  {len(pages)} pages fetched')
 
-# ── Discover property names (print on first run to help debugging) ─────────────
-
-if pages:
-    sample_props = list(pages[0]['properties'].keys())
-    print(f'  Property names: {sample_props}')
-
-
-# ── Map each Notion page → contact record ─────────────────────────────────────
-
-def find_prop(props, *candidates):
-    """Return first property that exists, case-insensitive."""
-    lower_map = {k.lower(): k for k in props}
-    for c in candidates:
-        key = lower_map.get(c.lower())
-        if key:
-            return props[key]
-    return {}
-
+# ── Parse pages ───────────────────────────────────────────────────────────────
 
 warm_contacts = []
 skipped = 0
+
 for page in pages:
     p = page['properties']
 
-    # Company / Name (try several common property names)
-    company = (
-        extract(find_prop(p, 'Company', 'Company name', 'Organization', 'Name'))
-        or extract(find_prop(p, 'Name', 'Title'))
-    ).strip()
+    # Company name: first look for 'title' type property (Notion always has one)
+    company = ''
+    for prop in p.values():
+        if prop.get('type') == 'title':
+            company = extract(prop).strip()
+            break
+    if not company:
+        # Fallback: look by common names
+        company = extract(find(p, 'Company', 'Company name', 'Name', 'Organization')).strip()
 
     if not company:
         skipped += 1
         continue
 
-    # Person contact name
-    person = extract(find_prop(p, 'Person', 'Contact', 'Contact Name', 'Point of Contact')).strip()
+    # All other fields — try user-described names first, then common aliases
+    industry     = extract(find(p, 'Industry', 'Sector', 'Vertical')).strip()
+    based_in     = extract(find(p, 'Market', 'Based In', 'Based in', 'Location', 'Country', 'Region', 'Geography')).strip()
+    email        = extract(find(p, 'Email', 'Email Address', 'Contact Email', 'Associated Contact')).strip()
+    person       = extract(find(p, 'Person', 'Contact', 'Contact Name', 'Point of Contact', 'Associated Contact')).strip()
+    introduced   = extract(find(p, 'Lead Owner', 'Owner', 'Introduced By', 'Introducer', 'Company owner', 'Relationship Owner')).strip()
+    website      = extract(find(p, 'Website', 'Website URL', 'URL', 'LinkedIn URL', 'LinkedIn')).strip()
+    org_type     = extract(find(p, 'Organization Type', 'Org Type', 'Type', 'Category', 'Company Type')).strip()
+    notes_raw    = extract(find(p, 'Notes', 'Description', 'Comment', 'Details')).strip()
 
-    # Industry
-    industry = extract(find_prop(p, 'Industry', 'Sector')).strip()
-
-    # Location — the user says "Market" is the column name for location
-    based_in = extract(find_prop(p, 'Market', 'Based In', 'Based in', 'Location', 'Country', 'Region')).strip()
-
-    # Email
-    email_raw = extract(find_prop(p, 'Email', 'Email Address', 'Contact Email'))
-    email = first_email({'type': 'rich_text', 'rich_text': [{'plain_text': email_raw}]} if email_raw else {})
-    if not email:
-        email = email_raw
-
-    # Website
-    website = extract(find_prop(p, 'Website', 'Website URL', 'URL', 'LinkedIn')).strip()
-
-    # Lead owner / introduced by
-    introduced_by = extract(find_prop(p, 'Lead Owner', 'Owner', 'Introduced By', 'Introducer', 'Company owner')).strip()
-
-    # Org type (if present)
-    org_type = extract(find_prop(p, 'Organization Type', 'Org Type', 'Type', 'Category')).strip()
-
-    tier = 'paid' if org_type in PAID_TYPES else 'free'
-
-    # Notes / extra context
+    # Build notes
     notes_parts = []
-    raw_notes = extract(find_prop(p, 'Notes', 'Description', 'Comment')).strip()
-    if raw_notes:
-        notes_parts.append(raw_notes)
-    if introduced_by:
-        notes_parts.append(f'Intro: {introduced_by}')
+    if notes_raw:
+        notes_parts.append(notes_raw)
+    if introduced:
+        notes_parts.append(f'Intro: {introduced}')
+
+    # If person is the same as an email address, clear it
+    if '@' in person:
+        email = email or person
+        person = ''
+
+    tier = 'paid' if org_type in PAID else 'free'
 
     warm_contacts.append({
         'name':         person or company,
@@ -194,13 +175,13 @@ for page in pages:
         'tier':         tier,
         'source':       'notion-warm',
         'connection':   'warm',
-        'introducedBy': introduced_by,
+        'introducedBy': introduced,
         'confidence':   'high',
     })
 
-print(f'  {len(warm_contacts)} warm contacts parsed ({skipped} skipped — no company name)')
+print(f'  {len(warm_contacts)} warm contacts parsed ({skipped} skipped — no name)')
 
-# ── Load existing contacts.json ────────────────────────────────────────────────
+# ── Merge into contacts.json ──────────────────────────────────────────────────
 
 existing = []
 if OUTPUT.exists():
@@ -209,28 +190,23 @@ if OUTPUT.exists():
     except Exception:
         pass
 
-# Strip old notion-warm entries (full refresh)
+# Replace old notion-warm entries (full refresh)
 non_warm = [c for c in existing if c.get('source') != 'notion-warm']
 
-# ── Propagate warm badge to matching existing contacts ─────────────────────────
-# If we know company X is warm, mark ALL existing contacts at that company as warm.
-
-warm_companies = {c['company'].lower().strip() for c in warm_contacts}
+# Propagate warm badge to any existing contact at the same company
+warm_cos = {c['company'].lower().strip() for c in warm_contacts}
 marked = 0
 for c in non_warm:
-    co_key = (c.get('company') or '').lower().strip()
-    if co_key in warm_companies and not c.get('connection'):
+    if (c.get('company') or '').lower().strip() in warm_cos and not c.get('connection'):
         c['connection'] = 'warm'
         marked += 1
 
 print(f'  Marked {marked} existing contacts at warm companies as warm')
-
-# ── Merge and re-index ────────────────────────────────────────────────────────
 
 merged = non_warm + warm_contacts
 for i, c in enumerate(merged):
     c['id'] = i
 
 OUTPUT.write_text(json.dumps(merged, ensure_ascii=False, separators=(',', ':')))
-print(f'contacts.json updated: {len(merged)} total ({len(non_warm)} existing + {len(warm_contacts)} warm)')
-print('Done. Commit public/contacts.json to deploy.')
+print(f'contacts.json updated: {len(merged)} total ({len(warm_contacts)} warm contacts added)')
+print('Done.')

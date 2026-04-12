@@ -12,9 +12,6 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref }}
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Sync warm contacts from Notion
         env:

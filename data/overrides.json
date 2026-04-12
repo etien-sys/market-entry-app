@@ -15,7 +15,12 @@
   "_fix_investors": "VCs mis-classified as Accelerator/Incubator",
   "e2vc": { "orgType": "Investor", "industry": "Venture Capital" },
 
+  "_fix_org_types": "LinkedIn enrichment misclassified org type",
+  "audere": { "orgType": "NGO", "industry": "Digital Health" },
+  "generic soft": { "orgType": "Service Provider", "industry": "Software Development", "basedIn": "Bulgaria" },
+
   "_fix_locations": "LinkedIn enrichment used HQ country instead of person's actual base",
   "launchub ventures": { "basedIn": "Bulgaria" },
-  "launchub": { "orgType": "Investor", "basedIn": "Bulgaria" }
+  "launchub": { "orgType": "Investor", "basedIn": "Bulgaria" },
+  "bek ventures": { "basedIn": "Turkey" }
 }
