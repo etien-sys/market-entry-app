@@ -419,8 +419,34 @@ export default function Admin({ contacts, loading }) {
     // AI mode: use expanded criteria when ready
     if (aiExpansion) return contacts.filter(c => matchesAIFilter(c, aiExpansion));
 
-    // Fallback: fast keyword matching (also shown while AI is loading)
-    return contacts.filter(c => matchesFilter(c, parsed));
+    // Relevance-ranked search:
+    // Direct company/name matches always surface first, even when the query also
+    // triggers a keyword/location filter (e.g. "Europe Cloud" contains "europe"
+    // which would otherwise activate the location filter and bury the real match).
+    const raw = query.toLowerCase().trim();
+
+    function directScore(c) {
+      const co = (c.company || '').toLowerCase();
+      const nm = (c.name    || '').toLowerCase();
+      if (co === raw || nm === raw)                     return 0; // exact
+      if (co.startsWith(raw) || nm.startsWith(raw))    return 1; // prefix
+      if (co.includes(raw))                             return 2; // company contains
+      if (nm.includes(raw))                             return 3; // name contains
+      return Infinity;
+    }
+
+    const directMatches = contacts
+      .filter(c => directScore(c) < Infinity)
+      .sort((a, b) => directScore(a) - directScore(b));
+
+    const directIds = new Set(directMatches.map(c => c.id));
+
+    // Keyword/location filter results that aren't already surfaced above
+    const structuredMatches = contacts.filter(
+      c => !directIds.has(c.id) && matchesFilter(c, parsed)
+    );
+
+    return [...directMatches, ...structuredMatches];
   }, [contacts, query, parsed, aiExpansion]);
 
   function setQueryAndSearch(q) {
