@@ -115,7 +115,12 @@ if pages:
 #   AI summary    (rich_text)     → notes
 #   Lead owner    (relation)      → introducedBy (relation type; name not directly available)
 
-warm_contacts = []
+# The Sales Leads DB is a CRM: one row per DEAL, not per person.
+# The same person can appear many times (one row per pipeline stage / touchpoint).
+# We deduplicate by (company, person) and merge deal notes into a single entry.
+
+# keyed by (company.lower(), person.lower()) → accumulated data
+deduped = {}   # key → dict
 skipped = 0
 
 for page in pages:
@@ -132,51 +137,72 @@ for page in pages:
         skipped += 1
         continue
 
-    person   = extract(find(p, 'Contact', 'Person', 'Contact Name', 'Point of Contact')).strip()
-    email    = extract(find(p, 'Email', 'Email Address')).strip()
-    industry = extract(find(p, 'Industry', 'Sector', 'Vertical')).strip()
-    based_in = extract(find(p, 'Market', 'Based In', 'Location', 'Country', 'Region', 'Geography')).strip()
-    website  = extract(find(p, 'Website', 'Website URL', 'LinkedIn', 'LinkedIn URL', 'URL')).strip()
+    person    = extract(find(p, 'Contact', 'Person', 'Contact Name', 'Point of Contact')).strip()
+    email     = extract(find(p, 'Email', 'Email Address')).strip()
+    industry  = extract(find(p, 'Industry', 'Sector', 'Vertical')).strip()
+    based_in  = extract(find(p, 'Market', 'Based In', 'Location', 'Country', 'Region', 'Geography')).strip()
+    website   = extract(find(p, 'Website', 'Website URL', 'LinkedIn', 'LinkedIn URL', 'URL')).strip()
     notes_raw = extract(find(p, 'AI summary', 'Notes', 'Description', 'Comment', 'Details')).strip()
     lead_temp = extract(find(p, 'Lead temp', 'Lead temperature', 'Temperature')).strip()
 
-    # If person looks like an email address, move it
+    # If person looks like an email address, treat it as email
     if person and '@' in person:
         email = email or person
         person = ''
 
-    # Determine connection from Lead temp
-    connection = 'warm'  # all entries from this DB are warm by definition
-
-    notes_parts = []
+    # Truncate AI summary to first sentence (max 200 chars)
+    note = ''
     if notes_raw:
-        # AI summaries can be very long — truncate to first sentence or 200 chars
         summary = notes_raw.split('.')[0].strip()
-        if len(summary) > 200:
-            summary = summary[:200] + '…'
-        if summary:
-            notes_parts.append(summary)
-    if lead_temp and lead_temp.lower() != 'warm':
-        notes_parts.append(f'Lead temp: {lead_temp}')
+        note = (summary[:200] + '…') if len(summary) > 200 else summary
+
+    key = (company.lower().strip(), person.lower().strip())
+    if key not in deduped:
+        deduped[key] = {
+            'company':  company,
+            'person':   person,
+            'email':    email,
+            'industry': industry,
+            'based_in': based_in,
+            'website':  website,
+            'notes':    [note] if note else [],
+            'lead_temp': lead_temp,
+        }
+    else:
+        # Accumulate: fill in any missing fields, append unique notes
+        d = deduped[key]
+        d['email']    = d['email']    or email
+        d['industry'] = d['industry'] or industry
+        d['based_in'] = d['based_in'] or based_in
+        d['website']  = d['website']  or website
+        if note and note not in d['notes']:
+            d['notes'].append(note)
+
+warm_contacts = []
+for d in deduped.values():
+    company  = d['company']
+    person   = d['person']
+    notes_parts = d['notes'][:3]   # cap at 3 deal notes to keep it readable
+    if d['lead_temp'] and d['lead_temp'].lower() not in ('warm', ''):
+        notes_parts = [f"Lead temp: {d['lead_temp']}"] + notes_parts
 
     warm_contacts.append({
-        'name':         person or company,
-        'role':         person and company or '',
-        'company':      company,
-        'basedIn':      based_in,
-        'orgType':      '',
-        'industry':     industry,
-        'website':      website,
-        'contact':      email,
-        'notes':        ' · '.join(notes_parts),
-        'tier':         'free',
-        'source':       'notion-warm',
-        'connection':   connection,
-        'introducedBy': '',
-        'confidence':   'high',
+        'name':       person or company,
+        'role':       person and company or '',
+        'company':    company,
+        'basedIn':    d['based_in'],
+        'orgType':    '',
+        'industry':   d['industry'],
+        'website':    d['website'],
+        'contact':    d['email'],
+        'notes':      ' · '.join(notes_parts),
+        'tier':       'free',
+        'source':     'notion-warm',
+        'connection': 'warm',
+        'confidence': 'high',
     })
 
-print(f'  {len(warm_contacts)} warm contacts parsed ({skipped} skipped — no company name)')
+print(f'  {len(pages)} rows → {len(warm_contacts)} unique contacts after deduplication ({skipped} skipped — no company name)')
 
 # ── Merge into contacts.json ──────────────────────────────────────────────────
 
