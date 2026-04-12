@@ -1,43 +1,58 @@
 #!/usr/bin/env python3
 """
 Enrich LinkedIn connections CSV with org type, industry, and location
-using Claude AI, then write results to enriched-contacts.csv.
-
-Optionally push to Notion contacts DB (disabled by default).
+using Claude AI, then write results to:
+  - public/contacts.json   (feeds the live app — both public map and admin view)
+  - /tmp/enriched-contacts.csv  (for manual review)
 
 Usage:
-  ANTHROPIC_API_KEY=sk-ant-... python3 scripts/import-linkedin.py
-  ANTHROPIC_API_KEY=... NOTION_API_KEY=... python3 scripts/import-linkedin.py --push-notion
+  ANTHROPIC_API_KEY=sk-ant-... python3 scripts/import-linkedin.py [/path/to/linkedin.csv]
 
 Input:  /tmp/linkedin_connections.csv  (LinkedIn export format)
-Output: /tmp/enriched-contacts.csv
+        or the first positional argument
+Output: public/contacts.json + /tmp/enriched-contacts.csv
 """
 
-import csv, json, os, sys, time, urllib.request, urllib.error
+import csv, json, os, sys, time
 from pathlib import Path
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-INPUT_CSV   = '/tmp/linkedin_connections.csv'
+INPUT_CSV  = sys.argv[1] if len(sys.argv) > 1 else '/tmp/linkedin_connections.csv'
+REPO_ROOT  = Path(__file__).resolve().parent.parent
+OUTPUT_JSON = REPO_ROOT / 'public' / 'contacts.json'
 OUTPUT_CSV  = '/tmp/enriched-contacts.csv'
-BATCH_SIZE  = 30       # contacts per Claude call
-PUSH_NOTION = '--push-notion' in sys.argv
-MODEL       = 'claude-haiku-4-5-20251001'   # fast + cheap for classification
+BATCH_SIZE  = 30
+MODEL       = 'claude-haiku-4-5-20251001'
 
 ANTHROPIC_KEY = os.environ.get('ANTHROPIC_API_KEY')
-NOTION_KEY    = os.environ.get('NOTION_API_KEY')
-CONTACTS_DB   = '2f19a7b410ae8060bc56c9b96da24234'
-
-ORG_TYPES = ['Startup', 'SME', 'Enterprise', 'VC / PE Fund', 'Angel Investor',
-             'Accelerator / Incubator', 'Government / Public sector',
-             'NGO / Non-profit', 'Consulting / Agency', 'Media', 'Other']
-
-# ── Guards ────────────────────────────────────────────────────────────────────
-
 if not ANTHROPIC_KEY:
     raise SystemExit('Error: ANTHROPIC_API_KEY not set')
-if PUSH_NOTION and not NOTION_KEY:
-    raise SystemExit('Error: --push-notion requires NOTION_API_KEY')
+
+# Must match the exact org type strings used in Admin.jsx / marketFilter.js
+ORG_TYPES = [
+    'Investor',
+    'Family Office',
+    'High-Net-Worth Individual',
+    'Product Startup',
+    'Product Scaleup',
+    'Corporation',
+    'Bank',
+    'Media',
+    'Event Organizer',
+    'Service Provider',
+    'Accelerator/ Incubator',
+    'NGO',
+    'Policymaker/ Public Sector Agency',
+    'Research',
+    'Other',
+]
+
+PAID_KEYWORDS = ['investor', 'family office', 'high-net-worth']
+
+def parse_tier(org_type):
+    lower = (org_type or '').lower()
+    return 'paid' if any(k in lower for k in PAID_KEYWORDS) else 'free'
 
 # ── Read CSV ──────────────────────────────────────────────────────────────────
 
@@ -50,12 +65,12 @@ with open(INPUT_CSV, newline='', encoding='utf-8') as f:
         if not company:
             continue
         rows.append({
-            'first_name':  r.get('First Name', '').strip(),
-            'last_name':   r.get('Last Name', '').strip(),
-            'url':         r.get('URL', '').strip(),
-            'email':       r.get('Email Address', '').strip(),
-            'company':     company,
-            'position':    r.get('Position', '').strip(),
+            'first_name':   r.get('First Name', '').strip(),
+            'last_name':    r.get('Last Name', '').strip(),
+            'url':          r.get('URL', '').strip(),
+            'email':        r.get('Email Address', '').strip(),
+            'company':      company,
+            'position':     r.get('Position', '').strip(),
             'connected_on': r.get('Connected On', '').strip(),
         })
 
@@ -67,32 +82,34 @@ import anthropic
 client = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
 
 SYSTEM = f"""You are a B2B data enrichment assistant.
-Given a list of companies and job titles, classify each one.
-Return ONLY valid JSON — an array matching the input order.
+Given a list of people with their company and job title, classify each one.
+Return ONLY valid JSON — an array matching the input order, no markdown fences.
 
 For each item return:
 {{
   "orgType":    one of {json.dumps(ORG_TYPES)},
-  "industry":   short industry label (e.g. "Fintech", "SaaS", "Healthcare", "Real Estate"),
-  "location":   best-guess country or city (e.g. "UAE", "UK", "Sofia, Bulgaria") — use "" if truly unknown,
+  "industry":   short industry label (e.g. "Fintech", "SaaS", "Healthcare", "Real Estate", "Media"),
+  "location":   best-guess country (e.g. "UAE", "UK", "Bulgaria", "Germany") — use "" if truly unknown,
   "confidence": "high" | "medium" | "low"
 }}
-Return nothing else — no markdown, no explanation."""
+
+Rules:
+- Use "Product Startup" for early-stage companies, "Product Scaleup" for growth-stage ones
+- Use "Investor" for VCs, PE firms, angel investors; "Family Office" for family-owned investment vehicles
+- Use "Corporation" for large enterprises; "Bank" for financial institutions
+- Infer location from company HQ or person's likely base — company name or well-known brand often gives it away
+- confidence "high" = you're certain; "medium" = reasonable guess; "low" = very uncertain"""
 
 def enrich_batch(batch):
-    """Call Claude once for a batch of contacts. Returns list of dicts."""
     items = [{'i': i, 'company': c['company'], 'position': c['position']}
              for i, c in enumerate(batch)]
-    user_msg = json.dumps(items, ensure_ascii=False)
-
     msg = client.messages.create(
         model=MODEL,
         max_tokens=1500,
         system=SYSTEM,
-        messages=[{'role': 'user', 'content': user_msg}],
+        messages=[{'role': 'user', 'content': json.dumps(items, ensure_ascii=False)}],
     )
     text = msg.content[0].text.strip()
-    # Strip markdown fences if Claude added them
     if text.startswith('```'):
         text = text.split('\n', 1)[1].rsplit('```', 1)[0].strip()
     results = json.loads(text)
@@ -117,12 +134,11 @@ for batch_num, start in enumerate(range(0, len(rows), BATCH_SIZE), 1):
             retries += 1
             if retries >= 3:
                 print(f'FAILED ({e}) — using blanks')
-                results = [{'orgType': '', 'industry': '', 'location': '', 'confidence': 'low'}] * len(batch)
+                results = [{'orgType': 'Other', 'industry': '', 'location': '', 'confidence': 'low'}] * len(batch)
                 break
             print(f'retry {retries}…', end=' ', flush=True)
             time.sleep(2)
         except Exception as e:
-            # Rate limit or network — back off
             retries += 1
             if retries >= 5:
                 raise
@@ -134,99 +150,47 @@ for batch_num, start in enumerate(range(0, len(rows), BATCH_SIZE), 1):
         enriched.append({**contact, **result})
     print('done')
 
-# ── Write output CSV ──────────────────────────────────────────────────────────
+# ── Write enriched CSV (for review) ──────────────────────────────────────────
 
-FIELDS = ['first_name', 'last_name', 'company', 'position', 'url', 'email',
-          'orgType', 'industry', 'location', 'confidence', 'connected_on']
+CSV_FIELDS = ['first_name', 'last_name', 'company', 'position', 'url', 'email',
+              'orgType', 'industry', 'location', 'confidence', 'connected_on']
 
-print(f'\nWriting {OUTPUT_CSV}…')
+print(f'\nWriting review CSV → {OUTPUT_CSV}…')
 with open(OUTPUT_CSV, 'w', newline='', encoding='utf-8') as f:
-    writer = csv.DictWriter(f, fieldnames=FIELDS, extrasaction='ignore')
+    writer = csv.DictWriter(f, fieldnames=CSV_FIELDS, extrasaction='ignore')
     writer.writeheader()
     writer.writerows(enriched)
 
-print(f'  Done — {len(enriched)} contacts written')
+# ── Write public/contacts.json (feeds the app) ────────────────────────────────
 
-# ── Optional Notion push ──────────────────────────────────────────────────────
-
-if not PUSH_NOTION:
-    print('\nNotion push skipped. Run with --push-notion to upload.')
-    sys.exit(0)
-
-print(f'\nPushing to Notion contacts DB…')
-
-def notion_request(method, path, body=None):
-    data = json.dumps(body).encode() if body else None
-    req = urllib.request.Request(
-        f'https://api.notion.com/v1{path}',
-        data=data,
-        headers={
-            'Authorization': f'Bearer {NOTION_KEY}',
-            'Notion-Version': '2022-06-28',
-            'Content-Type': 'application/json',
-        },
-        method=method,
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=30) as r:
-            return json.loads(r.read())
-    except urllib.error.HTTPError as e:
-        raise SystemExit(f'Notion API error {e.code}: {e.read().decode()}')
-
-# Fetch existing company names to avoid duplicates
-existing = set()
-cursor = None
-while True:
-    query_body = {'page_size': 100}
-    if cursor:
-        query_body['start_cursor'] = cursor
-    res = notion_request('POST', f'/databases/{CONTACTS_DB}/query', query_body)
-    for page in res.get('results', []):
-        props = page.get('properties', {})
-        title_prop = props.get('Company name') or props.get('Name') or {}
-        title_list = title_prop.get('title', [])
-        if title_list:
-            existing.add(title_list[0].get('plain_text', '').lower().strip())
-    if not res.get('has_more'):
-        break
-    cursor = res.get('next_cursor')
-
-print(f'  {len(existing)} existing companies found — will skip duplicates')
-
-added = skipped = errors = 0
-for c in enriched:
-    key = c['company'].lower().strip()
-    if key in existing:
-        skipped += 1
-        continue
-
-    name = f"{c['first_name']} {c['last_name']}".strip()
-    properties = {
-        'Company name': {'title': [{'text': {'content': c['company']}}]},
+def to_contact(c):
+    name = f"{c['first_name']} {c['last_name']}".strip() or c['company']
+    org_type = c.get('orgType', 'Other')
+    notes_parts = [
+        'LinkedIn connection',
+        c['connected_on'] and f"Connected: {c['connected_on']}",
+    ]
+    return {
+        'name':     name,
+        'role':     c['position'],
+        'company':  c['company'],
+        'basedIn':  c.get('location', ''),
+        'orgType':  org_type,
+        'industry': c.get('industry', ''),
+        'website':  c['url'],
+        'contact':  c['email'],
+        'notes':    ' · '.join(p for p in notes_parts if p),
+        'tier':     parse_tier(org_type),
+        'source':   'linkedin',
+        'confidence': c.get('confidence', 'low'),
     }
-    if name:
-        properties['Contact person'] = {'rich_text': [{'text': {'content': name}}]}
-    if c.get('url'):
-        properties['LinkedIn URL'] = {'url': c['url']}
-    if c.get('orgType'):
-        properties['Org type'] = {'select': {'name': c['orgType']}}
-    if c.get('industry'):
-        properties['Industry'] = {'multi_select': [{'name': c['industry']}]}
-    if c.get('location'):
-        properties['Based in'] = {'rich_text': [{'text': {'content': c['location']}}]}
 
-    try:
-        notion_request('POST', '/pages', {
-            'parent': {'database_id': CONTACTS_DB},
-            'properties': properties,
-        })
-        existing.add(key)
-        added += 1
-        if added % 50 == 0:
-            print(f'  {added} added…')
-        time.sleep(0.35)   # Notion rate limit: ~3 req/s
-    except SystemExit as e:
-        print(f'  Error for {c["company"]}: {e}')
-        errors += 1
+contacts_json = [to_contact(c) for c in enriched]
 
-print(f'\nDone — {added} added, {skipped} skipped (duplicate), {errors} errors')
+OUTPUT_JSON.parent.mkdir(exist_ok=True)
+with open(OUTPUT_JSON, 'w', encoding='utf-8') as f:
+    json.dump(contacts_json, f, ensure_ascii=False, separators=(',', ':'))
+
+size_kb = OUTPUT_JSON.stat().st_size / 1024
+print(f'Writing app JSON → {OUTPUT_JSON}  ({len(contacts_json)} contacts, {size_kb:.0f} KB)')
+print('\nDone. Commit public/contacts.json to deploy to the app.')

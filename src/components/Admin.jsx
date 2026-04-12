@@ -426,7 +426,15 @@ export default function Admin({ contacts, loading }) {
             Contact Database
           </h1>
           <p style={{ fontSize: '13px', color: '#4a4a65' }}>
-            {loading ? 'Loading…' : `${contacts.length.toLocaleString()} contacts · ${contacts.filter(c => c.contact).length.toLocaleString()} with contact info`}
+            {loading ? 'Loading…' : (() => {
+              const li = contacts.filter(c => c.source === 'linkedin').length;
+              const sh = contacts.filter(c => c.source !== 'linkedin').length;
+              const withContact = contacts.filter(c => c.contact).length;
+              const parts = [];
+              if (li) parts.push(`${li.toLocaleString()} LinkedIn`);
+              if (sh) parts.push(`${sh.toLocaleString()} curated`);
+              return `${contacts.length.toLocaleString()} contacts (${parts.join(' + ')}) · ${withContact.toLocaleString()} with contact info`;
+            })()}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -606,7 +614,7 @@ export default function Admin({ contacts, loading }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
               <tr style={{ background: '#111119', borderBottom: '2px solid #1e1e2e' }}>
-                {['Company', 'Connection', 'Org Type', 'Industry', 'Based In', 'Contact', 'Introduced by', 'Website'].map(h => (
+                {['Company / Person', 'Source', 'Org Type', 'Industry', 'Based In', 'Contact', 'Website'].map(h => (
                   <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: '10px', fontWeight: '700', color: '#4a4a65', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }}>
                     {h}
                   </th>
@@ -614,15 +622,37 @@ export default function Admin({ contacts, loading }) {
               </tr>
             </thead>
             <tbody>
-              {results.slice(0, 300).map((c, i) => {
-                const conn = getConnection(c);
+              {results.slice(0, 500).map((c, i) => {
+                const isLinkedIn = c.source === 'linkedin';
+                const displayName = c.company || c.name;
+                const personName  = isLinkedIn && c.name !== c.company ? c.name : null;
+                const websiteLabel = c.website
+                  ? isLinkedIn
+                    ? 'LinkedIn'
+                    : c.website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]
+                  : null;
                 return (
                   <tr key={c.id} style={{ borderBottom: '1px solid #0f0f1a', background: i % 2 === 0 ? 'transparent' : '#0a0a12' }}>
                     <td style={{ padding: '9px 14px', fontWeight: '500', whiteSpace: 'nowrap' }}>
-                      <span style={{ color: '#e8e8f0' }}>{c.name}</span>
+                      <div style={{ color: '#e8e8f0' }}>{displayName}</div>
+                      {personName && (
+                        <div style={{ fontSize: '11px', color: '#4a4a65', marginTop: '1px' }}>{personName}{c.role ? ` · ${c.role}` : ''}</div>
+                      )}
                     </td>
                     <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>
-                      <WarmthBadge value={conn} />
+                      {isLinkedIn ? (
+                        <span style={{
+                          fontSize: '10px', padding: '2px 7px',
+                          background: '#0a1429', border: '1px solid #1e4080',
+                          borderRadius: '10px', color: '#60a5fa', fontWeight: '700',
+                        }}>LinkedIn{c.confidence === 'low' ? ' ?' : ''}</span>
+                      ) : (
+                        <span style={{
+                          fontSize: '10px', padding: '2px 7px',
+                          background: '#0f1a0a', border: '1px solid #1a3010',
+                          borderRadius: '10px', color: '#34d399', fontWeight: '700',
+                        }}>Curated</span>
+                      )}
                     </td>
                     <td style={{ padding: '9px 14px', color: '#6b6b85', whiteSpace: 'nowrap' }}>{c.orgType}</td>
                     <td style={{ padding: '9px 14px', color: '#6b6b85' }}>{c.industry}</td>
@@ -630,16 +660,13 @@ export default function Admin({ contacts, loading }) {
                     <td style={{ padding: '9px 14px', maxWidth: '220px' }}>
                       {c.contact && <ContactCell value={c.contact} />}
                     </td>
-                    <td style={{ padding: '9px 14px', color: '#6b6b85', fontSize: '12px', whiteSpace: 'nowrap' }}>
-                      {c.owner || ''}
-                    </td>
                     <td style={{ padding: '9px 14px' }}>
-                      {c.website && (
+                      {c.website && websiteLabel && (
                         <a href={c.website} target="_blank" rel="noreferrer"
                           style={{ color: PURPLE, fontSize: '12px', textDecoration: 'none' }}
                           onMouseOver={e => { e.currentTarget.style.textDecoration = 'underline'; }}
                           onMouseOut={e => { e.currentTarget.style.textDecoration = 'none'; }}
-                        >{c.website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}</a>
+                        >{websiteLabel}</a>
                       )}
                     </td>
                   </tr>
@@ -654,9 +681,9 @@ export default function Admin({ contacts, loading }) {
             </div>
           )}
 
-          {results.length > 300 && (
+          {results.length > 500 && (
             <div style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', color: '#3a3a52', borderTop: '1px solid #1e1e2e', background: '#0d0d16' }}>
-              Showing 300 of {results.length.toLocaleString()} — use <strong style={{ color: '#4a4a65' }}>Export</strong> for the full list
+              Showing 500 of {results.length.toLocaleString()} — use <strong style={{ color: '#4a4a65' }}>Export</strong> for the full list
             </div>
           )}
         </div>
