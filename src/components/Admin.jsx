@@ -704,8 +704,10 @@ export default function Admin({ contacts, loading }) {
             <tbody>
               {results.slice(0, 500).map((c, i) => {
                 const isLinkedIn = c.source === 'linkedin';
-                const displayName = c.company || c.name;
-                const personName  = isLinkedIn && c.name !== c.company ? c.name : null;
+                const hasPerson  = c.name && c.name !== c.company;
+                // Person name is the primary header; company + role go on the second line
+                const displayName  = hasPerson ? c.name : (c.company || c.name);
+                const companyLine  = hasPerson ? c.company : null;
                 const websiteLabel = c.website
                   ? isLinkedIn
                     ? 'LinkedIn'
@@ -715,8 +717,10 @@ export default function Admin({ contacts, loading }) {
                   <tr key={c.id} style={{ borderBottom: '1px solid #0f0f1a', background: i % 2 === 0 ? 'transparent' : '#0a0a12' }}>
                     <td style={{ padding: '9px 14px', fontWeight: '500', whiteSpace: 'nowrap' }}>
                       <div style={{ color: '#e8e8f0' }}>{displayName}</div>
-                      {personName && (
-                        <div style={{ fontSize: '11px', color: '#4a4a65', marginTop: '1px' }}>{personName}{c.role ? ` · ${c.role}` : ''}</div>
+                      {companyLine && (
+                        <div style={{ fontSize: '11px', color: '#4a4a65', marginTop: '1px' }}>
+                          {companyLine}{c.role ? ` · ${c.role}` : ''}
+                        </div>
                       )}
                     </td>
                     <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>
