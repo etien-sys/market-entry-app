@@ -178,7 +178,7 @@ for page in pages:
         if note and note not in d['notes']:
             d['notes'].append(note)
 
-warm_contacts = []
+warm_records = []   # (company_lower, person_lower, enrichment_dict)
 for d in deduped.values():
     company  = d['company']
     person   = d['person']
@@ -186,23 +186,19 @@ for d in deduped.values():
     if d['lead_temp'] and d['lead_temp'].lower() not in ('warm', ''):
         notes_parts = [f"Lead temp: {d['lead_temp']}"] + notes_parts
 
-    warm_contacts.append({
-        'name':       person or company,
-        'role':       person and company or '',
-        'company':    company,
-        'basedIn':    d['based_in'],
-        'orgType':    '',
-        'industry':   d['industry'],
-        'website':    d['website'],
-        'contact':    d['email'],
-        'notes':      ' · '.join(notes_parts),
-        'tier':       'free',
-        'source':     'notion-warm',
-        'connection': 'warm',
-        'confidence': 'high',
+    warm_records.append({
+        'co_key':  company.lower().strip(),
+        'nm_key':  person.lower().strip(),
+        'company': company,
+        'person':  person,
+        'basedIn':   d['based_in'],
+        'industry':  d['industry'],
+        'website':   d['website'],
+        'contact':   d['email'],
+        'notes':     ' · '.join(notes_parts),
     })
 
-print(f'  {len(pages)} rows → {len(warm_contacts)} unique contacts after deduplication ({skipped} skipped — no company name)')
+print(f'  {len(pages)} rows → {len(warm_records)} unique contacts after deduplication ({skipped} skipped — no company name)')
 
 # ── Merge into contacts.json ──────────────────────────────────────────────────
 
@@ -213,23 +209,70 @@ if OUTPUT.exists():
     except Exception:
         pass
 
-# Replace old notion-warm entries (full refresh)
+# Remove old notion-warm entries (full refresh)
 non_warm = [c for c in existing if c.get('source') != 'notion-warm']
 
-# Propagate warm badge to any existing contact at the same company
-warm_cos = {c['company'].lower().strip() for c in warm_contacts}
-marked = 0
-for c in non_warm:
-    if (c.get('company') or '').lower().strip() in warm_cos and not c.get('connection'):
+# Build a lookup of existing contacts by (company, name) for merging
+# key → index into non_warm list
+existing_idx = {}
+for i, c in enumerate(non_warm):
+    co = (c.get('company') or '').lower().strip()
+    nm = (c.get('name')    or '').lower().strip()
+    existing_idx[(co, nm)] = i
+
+merged_in = 0
+new_entries = []
+
+for wr in warm_records:
+    co_key, nm_key = wr['co_key'], wr['nm_key']
+    idx = existing_idx.get((co_key, nm_key))
+
+    if idx is not None:
+        # Person already exists (e.g. from LinkedIn) — enrich in-place
+        c = non_warm[idx]
         c['connection'] = 'warm'
-        marked += 1
+        c['contact']    = c.get('contact')  or wr['contact']
+        c['basedIn']    = c.get('basedIn')  or wr['basedIn']
+        c['industry']   = c.get('industry') or wr['industry']
+        c['website']    = c.get('website')  or wr['website']
+        # Prepend deal notes (don't overwrite LinkedIn "Connected on" note)
+        if wr['notes']:
+            existing_note = c.get('notes', '')
+            c['notes'] = (wr['notes'] + ' · ' + existing_note).strip(' · ') if existing_note else wr['notes']
+        merged_in += 1
+    else:
+        # New person not in existing data — add as notion-warm entry
+        new_entries.append({
+            'name':       wr['person'] or wr['company'],
+            'role':       '',
+            'company':    wr['company'],
+            'basedIn':    wr['basedIn'],
+            'orgType':    '',
+            'industry':   wr['industry'],
+            'website':    wr['website'],
+            'contact':    wr['contact'],
+            'notes':      wr['notes'],
+            'tier':       'free',
+            'source':     'notion-warm',
+            'connection': 'warm',
+            'confidence': 'high',
+        })
 
-print(f'  Marked {marked} existing contacts at warm companies as warm')
+# Propagate warm badge to any other contact at a warm company (not yet marked)
+warm_cos = {wr['co_key'] for wr in warm_records}
+propagated = 0
+for c in non_warm:
+    co = (c.get('company') or '').lower().strip()
+    if co in warm_cos and not c.get('connection'):
+        c['connection'] = 'warm'
+        propagated += 1
 
-merged = non_warm + warm_contacts
+print(f'  Merged into {merged_in} existing contacts; {len(new_entries)} new entries; {propagated} others marked warm')
+
+merged = non_warm + new_entries
 for i, c in enumerate(merged):
     c['id'] = i
 
 OUTPUT.write_text(json.dumps(merged, ensure_ascii=False, separators=(',', ':')))
-print(f'contacts.json updated: {len(merged)} total ({len(warm_contacts)} warm contacts added)')
+print(f'contacts.json updated: {len(merged)} total')
 print('Done.')
