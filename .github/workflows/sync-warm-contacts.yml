@@ -21,14 +21,27 @@ jobs:
       - name: Apply manual overrides
         run: python3 scripts/apply-overrides.py
 
-      - name: Commit & push if changed
+      - name: Push contacts.json to gh-pages (live app)
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Commit to current branch (source of truth)
           git add public/contacts.json
           if git diff --cached --quiet; then
-            echo "No changes — warm contacts are up to date"
-          else
-            git commit -m "chore: sync warm contacts from Notion ($(date -u +%Y-%m-%d))"
-            git push
+            echo "No changes to contacts.json"
+            exit 0
           fi
+          git commit -m "chore: sync warm contacts from Notion ($(date -u +%Y-%m-%d))"
+          git push
+
+          # Also push contacts.json directly to gh-pages (live app reads it from there)
+          git fetch origin gh-pages
+          GH_SHA=$(git rev-parse origin/gh-pages)
+          BLOB=$(git hash-object -w public/contacts.json)
+          OLD_TREE=$(git cat-file -p $GH_SHA | grep ' tree ' | awk '{print $3}')
+          NEW_TREE=$(git cat-file -p $OLD_TREE | sed "s/[a-f0-9]\{40\}\(.*contacts\.json\)/$BLOB\1/" | git mktree)
+          NEW_COMMIT=$(git commit-tree $NEW_TREE -p $GH_SHA \
+            -m "chore: sync warm contacts from Notion ($(date -u +%Y-%m-%d))")
+          git push origin $NEW_COMMIT:refs/heads/gh-pages
+          echo "gh-pages updated"

@@ -124,15 +124,24 @@ skipped = 0
 for page in pages:
     p = page['properties']
 
-    # Company name: first look for 'title' type property (Notion always has one)
-    company = ''
+    # In a CRM database the title property is typically the PERSON/CONTACT name.
+    # The company name lives in a separate property (Company, Organization, etc.).
+    title_val = ''
     for prop in p.values():
         if prop.get('type') == 'title':
-            company = extract(prop).strip()
+            title_val = extract(prop).strip()
             break
-    if not company:
-        # Fallback: look by common names
-        company = extract(find(p, 'Company', 'Company name', 'Name', 'Organization')).strip()
+
+    # Try to find a dedicated company field; fall back to title if nothing found
+    company = extract(find(p, 'Company', 'Company name', 'Organization', 'Firm', 'Account')).strip()
+
+    # The title might BE the company name (some DBs are structured that way)
+    # Use title as person name if a separate company field was found, else as company
+    if company:
+        person_from_title = title_val   # title = person name
+    else:
+        company = title_val             # title = company name
+        person_from_title = ''
 
     if not company:
         skipped += 1
@@ -142,7 +151,8 @@ for page in pages:
     industry     = extract(find(p, 'Industry', 'Sector', 'Vertical')).strip()
     based_in     = extract(find(p, 'Market', 'Based In', 'Based in', 'Location', 'Country', 'Region', 'Geography')).strip()
     email        = extract(find(p, 'Email', 'Email Address', 'Contact Email', 'Associated Contact')).strip()
-    person       = extract(find(p, 'Person', 'Contact', 'Contact Name', 'Point of Contact', 'Associated Contact')).strip()
+    person       = (extract(find(p, 'Person', 'Contact', 'Contact Name', 'Point of Contact')).strip()
+                    or person_from_title)
     introduced   = extract(find(p, 'Lead Owner', 'Owner', 'Introduced By', 'Introducer', 'Company owner', 'Relationship Owner')).strip()
     website      = extract(find(p, 'Website', 'Website URL', 'URL', 'LinkedIn URL', 'LinkedIn')).strip()
     org_type     = extract(find(p, 'Organization Type', 'Org Type', 'Type', 'Category', 'Company Type')).strip()
@@ -155,8 +165,8 @@ for page in pages:
     if introduced:
         notes_parts.append(f'Intro: {introduced}')
 
-    # If person is the same as an email address, clear it
-    if '@' in person:
+    # If person looks like an email address, move it
+    if person and '@' in person:
         email = email or person
         person = ''
 
