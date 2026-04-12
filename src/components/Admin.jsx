@@ -88,39 +88,57 @@ function wordMatch(text, word) {
 
 function parseQuery(q) {
   const lower = q.toLowerCase();
+  let remainder = lower;
+
   const orgTypes = [];
   for (const p of ORG_PATTERNS) {
-    if (p.words.some(w => wordMatch(lower, w))) orgTypes.push(...p.orgTypes);
+    for (const w of p.words) {
+      if (wordMatch(lower, w)) {
+        orgTypes.push(...p.orgTypes);
+        // Strip matched keyword from remainder (word-boundary aware)
+        const esc = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+');
+        remainder = remainder.replace(new RegExp(`(^|\\s)${esc}(\\s|$)`, 'g'), ' ').trim();
+      }
+    }
   }
+
   const locations = [];
   for (const key of Object.keys(LOCATION_MAP).sort((a, b) => b.length - a.length)) {
     if (lower.includes(key)) {
       locations.push(...LOCATION_MAP[key]);
+      remainder = remainder.replace(key, '').trim();
       break;
     }
   }
-  return { orgTypes: [...new Set(orgTypes)], locations: [...new Set(locations)], raw: lower };
+
+  return { orgTypes: [...new Set(orgTypes)], locations: [...new Set(locations)], raw: lower, remainder };
 }
 
-function matchesFilter(c, { orgTypes, locations, raw }) {
-  const orgType = (c.orgType || '').toLowerCase();
-  const basedIn = (c.basedIn || '').toLowerCase();
-  // Search across name AND company (distinct for notion contacts where name = person, company = org)
-  const name    = (c.name || '').toLowerCase();
-  const company = (c.company || '').toLowerCase();
-  const role    = (c.role || '').toLowerCase();
-  const notes   = (c.notes || '').toLowerCase();
-  const website = (c.website || '').toLowerCase();
-  const contact = (c.contact || '').toLowerCase();
+function matchesFilter(c, { orgTypes, locations, raw, remainder }) {
+  const orgType  = (c.orgType   || '').toLowerCase();
+  const industry = (c.industry  || '').toLowerCase();
+  const basedIn  = (c.basedIn   || '').toLowerCase();
+  const name     = (c.name      || '').toLowerCase();
+  const company  = (c.company   || '').toLowerCase();
+  const role     = (c.role      || '').toLowerCase();
+  const notes    = (c.notes     || '').toLowerCase();
+  const website  = (c.website   || '').toLowerCase();
+  const contact  = (c.contact   || '').toLowerCase();
 
   if (orgTypes.length === 0 && locations.length === 0) {
     // Raw text: search identity/contact fields only — NOT orgType or industry
     // (those are filter dimensions, not free-text content)
     return [name, company, role, notes, website, contact, basedIn].some(f => f.includes(raw));
   }
+
   const orgMatch = orgTypes.length === 0 || orgTypes.some(ot => orgType.includes(ot.toLowerCase()));
   const locMatch = locations.length === 0 || locations.some(l => basedIn.toLowerCase().includes(l.toLowerCase()));
-  return orgMatch && locMatch;
+
+  // If the query had leftover words beyond the keyword (e.g. "fintech" in "fintech media"),
+  // require them to also match somewhere in the contact's text fields.
+  const textMatch = !remainder || [name, company, role, notes, industry, website, contact, basedIn].some(f => f.includes(remainder));
+
+  return orgMatch && locMatch && textMatch;
 }
 
 // ── AI-powered semantic search ────────────────────────────────────────────────
