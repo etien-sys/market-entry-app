@@ -457,12 +457,15 @@ export default function Admin({ contacts, loading }) {
     const raw = query.toLowerCase().trim();
 
     function directScore(c) {
-      const co = (c.company || '').toLowerCase();
-      const nm = (c.name    || '').toLowerCase();
-      if (co === raw || nm === raw)                  return 0; // exact
-      if (co.startsWith(raw) || nm.startsWith(raw)) return 1; // prefix
-      if (co.includes(raw))                          return 2; // company contains
-      if (nm.includes(raw))                          return 3; // name contains
+      const co       = (c.company || '').toLowerCase();
+      const nm       = (c.name    || '').toLowerCase();
+      // Person contacts (distinct name) rank ahead of company-level entries (name===company).
+      // Add 0.5 to company-level entries so individual contacts always come first.
+      const personBonus = (nm && nm !== co) ? 0 : 0.5;
+      if (co === raw || nm === raw)                  return personBonus;       // exact
+      if (co.startsWith(raw) || nm.startsWith(raw)) return 1 + personBonus;  // prefix
+      if (co.includes(raw))                          return 2 + personBonus;  // company contains
+      if (nm.includes(raw))                          return 3;                // name contains
       return Infinity;
     }
 
