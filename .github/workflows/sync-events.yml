@@ -8,8 +8,12 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Sync events from Notion
         env:
@@ -28,5 +32,5 @@ jobs:
             echo "No changes — events are up to date"
           else
             git commit -m "chore: sync events from Notion ($(date -u +%Y-%m-%d))"
-            git push
+            git push origin HEAD:${{ github.ref_name }}
           fi
