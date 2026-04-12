@@ -38,7 +38,7 @@ jobs:
           # Also push contacts.json directly to gh-pages (live app reads it from there)
           git fetch origin gh-pages
           GH_SHA=$(git rev-parse origin/gh-pages)
-          OLD_TREE=$(git cat-file -p "$GH_SHA" | awk '/^[0-9]+ tree / {print $3}')
+          OLD_TREE=$(git cat-file -p "$GH_SHA" | grep '^tree ' | awk '{print $2}')
           if [ -z "$OLD_TREE" ]; then
             echo "ERROR: could not read gh-pages tree — aborting gh-pages update to avoid data loss"
             exit 0
