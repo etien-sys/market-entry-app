@@ -107,7 +107,7 @@ export async function fetchContacts() {
     }
   }
   for (const c of notionContacts) {
-    // Events and curated entries: dedupe by name (org-centric)
+    // Notion/events and curated entries: dedupe by name (org-centric)
     if (c.source !== 'linkedin') {
       const key = (c.company || c.name).toLowerCase().trim();
       if (!seenCompanies.has(key)) {
