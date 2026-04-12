@@ -697,7 +697,7 @@ export default function Admin({ contacts, loading }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
               <tr style={{ background: '#111119', borderBottom: '2px solid #1e1e2e' }}>
-                {['Company / Person', 'Source', 'Org Type', 'Industry', 'Based In', 'Contact', 'Website'].map(h => (
+                {['Company / Person', 'Connection', 'Org Type', 'Industry', 'Based In', 'Contact', 'Website'].map(h => (
                   <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: '10px', fontWeight: '700', color: '#4a4a65', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }}>
                     {h}
                   </th>
@@ -705,60 +705,111 @@ export default function Admin({ contacts, loading }) {
               </tr>
             </thead>
             <tbody>
-              {results.slice(0, 500).map((c, i) => {
-                const isLinkedIn = c.source === 'linkedin';
-                const hasPerson  = c.name && c.name !== c.company;
-                // Person name is the primary header; company + role go on the second line
-                const displayName  = hasPerson ? c.name : (c.company || c.name);
-                const companyLine  = hasPerson ? c.company : null;
-                const websiteLabel = c.website
-                  ? isLinkedIn
-                    ? 'LinkedIn'
-                    : c.website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]
-                  : null;
-                return (
-                  <tr key={c.id} style={{ borderBottom: '1px solid #0f0f1a', background: i % 2 === 0 ? 'transparent' : '#0a0a12' }}>
-                    <td style={{ padding: '9px 14px', fontWeight: '500', whiteSpace: 'nowrap' }}>
-                      <div style={{ color: '#e8e8f0' }}>{displayName}</div>
-                      {companyLine && (
-                        <div style={{ fontSize: '11px', color: '#4a4a65', marginTop: '1px' }}>
-                          {companyLine}{c.role ? ` · ${c.role}` : ''}
-                        </div>
-                      )}
-                    </td>
-                    <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>
-                      {isLinkedIn ? (
-                        <span style={{
-                          fontSize: '10px', padding: '2px 7px',
-                          background: '#0a1429', border: '1px solid #1e4080',
-                          borderRadius: '10px', color: '#60a5fa', fontWeight: '700',
-                        }}>LinkedIn{c.confidence === 'low' ? ' ?' : ''}</span>
-                      ) : (
-                        <span style={{
-                          fontSize: '10px', padding: '2px 7px',
-                          background: '#0f1a0a', border: '1px solid #1a3010',
-                          borderRadius: '10px', color: '#34d399', fontWeight: '700',
-                        }}>Curated</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '9px 14px', color: '#6b6b85', whiteSpace: 'nowrap' }}>{c.orgType}</td>
-                    <td style={{ padding: '9px 14px', color: '#6b6b85' }}>{c.industry}</td>
-                    <td style={{ padding: '9px 14px', color: '#6b6b85', whiteSpace: 'nowrap' }}>{c.basedIn}</td>
-                    <td style={{ padding: '9px 14px', maxWidth: '220px' }}>
-                      {c.contact && <ContactCell value={c.contact} />}
-                    </td>
-                    <td style={{ padding: '9px 14px' }}>
-                      {c.website && websiteLabel && (
-                        <a href={c.website} target="_blank" rel="noreferrer"
-                          style={{ color: PURPLE, fontSize: '12px', textDecoration: 'none' }}
-                          onMouseOver={e => { e.currentTarget.style.textDecoration = 'underline'; }}
-                          onMouseOut={e => { e.currentTarget.style.textDecoration = 'none'; }}
-                        >{websiteLabel}</a>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+              {(() => {
+                // Group contacts by company so all people at the same company appear together
+                const seen = new Map();
+                const groups = [];
+                for (const c of results.slice(0, 500)) {
+                  const key = (c.company || c.name || '').toLowerCase().trim();
+                  if (!seen.has(key)) { seen.set(key, groups.length); groups.push([]); }
+                  groups[seen.get(key)].push(c);
+                }
+
+                return groups.map((group) => {
+                  const companyName = group[0].company || group[0].name || '';
+                  // Use best metadata: prefer curated entries for org info
+                  const meta = group.find(c => c.source !== 'linkedin' && (c.orgType || c.industry || c.basedIn))
+                    || group.find(c => c.orgType || c.industry || c.basedIn)
+                    || group[0];
+                  const connection = group.find(c => c.connection)?.connection;
+                  const connStyle = connection === 'warm'
+                    ? { color: '#34d399', bg: '#0f1a0a', border: '#34d39940' }
+                    : connection === 'cold'
+                    ? { color: '#60a5fa', bg: '#0a1429', border: '#60a5fa40' }
+                    : null;
+                  // People = contacts with a distinct person name; company-level entries last
+                  const people = group.filter(c => c.name && c.name !== c.company);
+                  const companyEntries = group.filter(c => !c.name || c.name === c.company);
+
+                  // Collect all contacts/websites from the group
+                  const allContacts = [...new Set(group.map(c => c.contact).filter(Boolean))];
+                  const mainWebsite = meta.website || group.find(c => c.website && c.source !== 'linkedin')?.website || '';
+                  const websiteLabel = mainWebsite ? mainWebsite.replace(/^https?:\/\/(www\.)?/, '').split('/')[0] : null;
+
+                  return (
+                    <React.Fragment key={companyName + group[0].id}>
+                      {/* Company header row */}
+                      <tr style={{ borderBottom: people.length ? 'none' : '1px solid #0f0f1a', background: '#0d0d17' }}>
+                        <td style={{ padding: '9px 14px', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                          <div style={{ color: '#e8e8f0' }}>{companyName}</div>
+                          {people.length > 0 && (
+                            <div style={{ fontSize: '11px', color: '#4a4a65', marginTop: '1px' }}>
+                              {people.length} contact{people.length > 1 ? 's' : ''}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>
+                          {connStyle && (
+                            <span style={{ fontSize: '10px', padding: '2px 8px', background: connStyle.bg, border: `1px solid ${connStyle.border}`, borderRadius: '10px', color: connStyle.color, fontWeight: '700', textTransform: 'capitalize' }}>
+                              {connection}
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: '9px 14px', color: '#6b6b85', whiteSpace: 'nowrap' }}>{meta.orgType}</td>
+                        <td style={{ padding: '9px 14px', color: '#6b6b85' }}>{meta.industry}</td>
+                        <td style={{ padding: '9px 14px', color: '#6b6b85', whiteSpace: 'nowrap' }}>{meta.basedIn}</td>
+                        <td style={{ padding: '9px 14px', maxWidth: '220px' }}>
+                          {allContacts[0] && <ContactCell value={allContacts[0]} />}
+                        </td>
+                        <td style={{ padding: '9px 14px' }}>
+                          {websiteLabel && (
+                            <a href={mainWebsite} target="_blank" rel="noreferrer"
+                              style={{ color: PURPLE, fontSize: '12px', textDecoration: 'none' }}
+                              onMouseOver={e => { e.currentTarget.style.textDecoration = 'underline'; }}
+                              onMouseOut={e => { e.currentTarget.style.textDecoration = 'none'; }}
+                            >{websiteLabel}</a>
+                          )}
+                        </td>
+                      </tr>
+                      {/* Person sub-rows */}
+                      {people.map((c, pi) => {
+                        const isLinkedIn = c.source === 'linkedin';
+                        const isLast = pi === people.length - 1;
+                        const liUrl = isLinkedIn && c.website ? c.website : null;
+                        return (
+                          <tr key={c.id} style={{ borderBottom: isLast ? '2px solid #1a1a2e' : '1px solid #0a0a14', background: '#08080f' }}>
+                            <td style={{ padding: '6px 14px 6px 28px', whiteSpace: 'nowrap' }}>
+                              <span style={{ color: '#c8c8e0', fontWeight: '500' }}>{c.name}</span>
+                              {c.role && <span style={{ color: '#4a4a65', fontSize: '11px' }}> · {c.role}</span>}
+                            </td>
+                            <td style={{ padding: '6px 14px' }}>
+                              {isLinkedIn ? (
+                                <span style={{ fontSize: '10px', padding: '2px 7px', background: '#0a1429', border: '1px solid #1e4080', borderRadius: '10px', color: '#60a5fa', fontWeight: '700' }}>LinkedIn</span>
+                              ) : (
+                                <span style={{ fontSize: '10px', padding: '2px 7px', background: '#0f1a0a', border: '1px solid #1a3010', borderRadius: '10px', color: '#34d399', fontWeight: '700' }}>Curated</span>
+                              )}
+                            </td>
+                            <td /><td />
+                            <td style={{ padding: '6px 14px', color: '#4a4a65', fontSize: '12px' }}>{c.basedIn}</td>
+                            <td style={{ padding: '6px 14px', maxWidth: '220px' }}>
+                              {c.contact && <ContactCell value={c.contact} />}
+                            </td>
+                            <td style={{ padding: '6px 14px' }}>
+                              {liUrl && (
+                                <a href={liUrl} target="_blank" rel="noreferrer"
+                                  style={{ color: '#3a3a5a', fontSize: '12px', textDecoration: 'none' }}
+                                  onMouseOver={e => { e.currentTarget.style.color = PURPLE; }}
+                                  onMouseOut={e => { e.currentTarget.style.color = '#3a3a5a'; }}
+                                >LinkedIn ↗</a>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </React.Fragment>
+                  );
+                });
+              })()}
             </tbody>
           </table>
 
