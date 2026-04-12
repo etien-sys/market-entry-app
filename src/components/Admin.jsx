@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 
 const PURPLE = '#7c6fe0';
 const API_KEY_STORAGE = 'seti-admin-api-key';
@@ -424,14 +424,31 @@ export default function Admin({ contacts, loading }) {
 
   const parsed = useMemo(() => parseQuery(query), [query]);
 
+  // How much useful info does this contact have? Higher = shown first.
+  const richnessScore = useCallback((c) => {
+    let s = 0;
+    if (c.orgType)    s += 2;
+    if (c.industry)   s += 1;
+    if (c.basedIn)    s += 1;
+    if (c.contact)    s += 2;
+    if (c.website)    s += 1;
+    // Notes beyond the bare "LinkedIn connection" boilerplate
+    if (c.notes && !/^LinkedIn connection( · Connected: [\d-]+)?$/.test(c.notes)) s += 1;
+    if (c.connection === 'warm')      s += 3;
+    if (c.source === 'notion-warm')   s += 2;
+    if (c.source === 'events')        s += 1;
+    return s;
+  }, []);
+
   const results = useMemo(() => {
-    if (!query.trim()) return contacts;
+    // No query: sort all contacts by richness so best-data contacts appear first
+    if (!query.trim()) return [...contacts].sort((a, b) => richnessScore(b) - richnessScore(a));
 
     // "with contact/email" special case — always keyword-driven
     if (/with (contact|email)|has (contact|email)/.test(query.toLowerCase())) {
       const rest = query.toLowerCase().replace(/with (contact|email)|has (contact|email)/g, '').trim();
       const base = rest ? contacts.filter(c => matchesFilter(c, parseQuery(rest))) : contacts;
-      return base.filter(c => c.contact);
+      return base.filter(c => c.contact).sort((a, b) => richnessScore(b) - richnessScore(a));
     }
 
     // AI mode: use expanded criteria when ready
@@ -455,17 +472,17 @@ export default function Admin({ contacts, loading }) {
 
     const directMatches = contacts
       .filter(c => directScore(c) < Infinity)
-      .sort((a, b) => directScore(a) - directScore(b));
+      .sort((a, b) => directScore(a) - directScore(b) || richnessScore(b) - richnessScore(a));
 
     const directIds = new Set(directMatches.map(c => c.id));
 
-    // Keyword/location filter results that aren't already surfaced above
-    const structuredMatches = contacts.filter(
-      c => !directIds.has(c.id) && matchesFilter(c, parsed)
-    );
+    // Keyword/location filter results — sorted by richness within the group
+    const structuredMatches = contacts
+      .filter(c => !directIds.has(c.id) && matchesFilter(c, parsed))
+      .sort((a, b) => richnessScore(b) - richnessScore(a));
 
     return [...directMatches, ...structuredMatches];
-  }, [contacts, query, parsed, aiExpansion]);
+  }, [contacts, query, parsed, aiExpansion, richnessScore]);
 
   function setQueryAndSearch(q) {
     setQuery(q);
