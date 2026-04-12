@@ -451,22 +451,18 @@ export default function Admin({ contacts, loading }) {
       return base.filter(c => c.contact).sort((a, b) => richnessScore(b) - richnessScore(a));
     }
 
-    // AI mode: use expanded criteria when ready
-    if (aiExpansion) return contacts.filter(c => matchesAIFilter(c, aiExpansion));
-
-    // Relevance-ranked search:
-    // Direct company/name matches always surface first, even when the query also
-    // triggers a keyword/location filter (e.g. "Europe Cloud" contains "europe"
-    // which would otherwise activate the location filter and bury the real match).
+    // Direct company/name matches always surface first — even in AI mode.
+    // This ensures searching "Europe Cloud" finds that company before any
+    // location/org-type expanded results.
     const raw = query.toLowerCase().trim();
 
     function directScore(c) {
       const co = (c.company || '').toLowerCase();
       const nm = (c.name    || '').toLowerCase();
-      if (co === raw || nm === raw)                     return 0; // exact
-      if (co.startsWith(raw) || nm.startsWith(raw))    return 1; // prefix
-      if (co.includes(raw))                             return 2; // company contains
-      if (nm.includes(raw))                             return 3; // name contains
+      if (co === raw || nm === raw)                  return 0; // exact
+      if (co.startsWith(raw) || nm.startsWith(raw)) return 1; // prefix
+      if (co.includes(raw))                          return 2; // company contains
+      if (nm.includes(raw))                          return 3; // name contains
       return Infinity;
     }
 
@@ -475,6 +471,14 @@ export default function Admin({ contacts, loading }) {
       .sort((a, b) => directScore(a) - directScore(b) || richnessScore(b) - richnessScore(a));
 
     const directIds = new Set(directMatches.map(c => c.id));
+
+    // AI mode: expanded criteria for everything except direct matches (already above)
+    if (aiExpansion) {
+      const aiMatches = contacts
+        .filter(c => !directIds.has(c.id) && matchesAIFilter(c, aiExpansion))
+        .sort((a, b) => richnessScore(b) - richnessScore(a));
+      return [...directMatches, ...aiMatches];
+    }
 
     // Keyword/location filter results — sorted by richness within the group
     const structuredMatches = contacts
