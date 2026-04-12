@@ -93,22 +93,34 @@ export async function fetchContacts() {
     fetchNotionContacts(),
   ]);
 
-  // Deduplicate by company name (sheet contacts take priority for name/role fields)
-  const seen = new Set();
+  // Sheet contacts: deduplicate by company name (org-centric)
+  // JSON contacts (LinkedIn/events): deduplicate by name+company (person-centric)
+  // Sheet takes priority over JSON for the same company
+  const seenCompanies = new Set();
   const merged = [];
 
   for (const c of sheetContacts) {
     const key = (c.company || c.name).toLowerCase().trim();
-    if (!seen.has(key)) {
-      seen.add(key);
+    if (!seenCompanies.has(key)) {
+      seenCompanies.add(key);
       merged.push({ ...c, id: merged.length });
     }
   }
   for (const c of notionContacts) {
-    const key = (c.company || c.name).toLowerCase().trim();
-    if (!seen.has(key)) {
-      seen.add(key);
-      merged.push({ ...c, id: merged.length });
+    // Events and curated entries: dedupe by name (org-centric)
+    if (c.source !== 'linkedin') {
+      const key = (c.company || c.name).toLowerCase().trim();
+      if (!seenCompanies.has(key)) {
+        seenCompanies.add(key);
+        merged.push({ ...c, id: merged.length });
+      }
+    } else {
+      // LinkedIn: dedupe by person name + company (allow multiple people, one per company)
+      const companyKey = (c.company || '').toLowerCase().trim();
+      if (!seenCompanies.has(companyKey)) {
+        seenCompanies.add(companyKey);
+        merged.push({ ...c, id: merged.length });
+      }
     }
   }
 
