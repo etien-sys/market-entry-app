@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "deploy": "gh-pages -d dist -r http://local_proxy@127.0.0.1:45493/git/etien-sys/market-entry-app -b gh-pages"
+    "deploy": "gh-pages -d dist -r http://local_proxy@127.0.0.1:35133/git/etien-sys/market-entry-app -b gh-pages"
   },
   "dependencies": {
     "react": "^19.2.4",
