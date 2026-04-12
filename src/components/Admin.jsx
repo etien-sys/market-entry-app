@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 
 const PURPLE = '#7c6fe0';
 const API_KEY_STORAGE = 'seti-admin-api-key';
