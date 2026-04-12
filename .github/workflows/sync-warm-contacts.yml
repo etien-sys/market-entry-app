@@ -1,0 +1,32 @@
+name: Sync Warm Contacts from Notion
+
+on:
+  schedule:
+    - cron: '30 6 * * *'   # daily at 6:30 AM UTC (after events sync)
+  workflow_dispatch:        # manual trigger from Actions tab
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync warm contacts from Notion
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+        run: python3 scripts/sync-warm-contacts.py
+
+      - name: Apply manual overrides
+        run: python3 scripts/apply-overrides.py
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/contacts.json
+          if git diff --cached --quiet; then
+            echo "No changes — warm contacts are up to date"
+          else
+            git commit -m "chore: sync warm contacts from Notion ($(date -u +%Y-%m-%d))"
+            git push
+          fi

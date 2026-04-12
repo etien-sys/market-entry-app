@@ -5,5 +5,17 @@
   "the c-suite podcast": { "orgType": "Media", "industry": "Media" },
   "wired island international": { "orgType": "Service Provider", "industry": "PR & Communications" },
   "kardi ai": { "industry": "AI / ML" },
-  "dreamix": { "orgType": "Service Provider", "industry": "Software Development" }
+  "dreamix": { "orgType": "Service Provider", "industry": "Software Development" },
+
+  "_fix_events": "The following were mis-classified as Accelerator/Incubator but are event organisations",
+  "deep tech momentum": { "orgType": "Event Organizer", "industry": "Events" },
+  "hello tomorrow": { "orgType": "Event Organizer", "industry": "Events" },
+  "the doers company": { "orgType": "Event Organizer", "industry": "Events" },
+
+  "_fix_investors": "VCs mis-classified as Accelerator/Incubator",
+  "e2vc": { "orgType": "Investor", "industry": "Venture Capital" },
+
+  "_fix_locations": "LinkedIn enrichment used HQ country instead of person's actual base",
+  "launchub ventures": { "basedIn": "Bulgaria" },
+  "launchub": { "orgType": "Investor", "basedIn": "Bulgaria" }
 }
