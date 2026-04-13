@@ -972,6 +972,19 @@ export default function Admin({ contacts: rawContacts, loading }) {
                   const mainWebsite = meta.website || group.find(c => c.website && c.source !== 'linkedin')?.website || '';
                   const websiteLabel = mainWebsite ? mainWebsite.replace(/^https?:\/\/(www\.)?/, '').split('/')[0] : null;
 
+                  // Company-level override key is always the bare company name — never a person key.
+                  // This prevents company-row edits from colliding with person sub-row edits when
+                  // `meta` happens to be a LinkedIn person (e.g. Salesforce → Tibor Horvath).
+                  const coKey = companyName.toLowerCase().trim();
+                  const coOv  = localOverrides[coKey] || {};
+                  // Synthetic company contact used as the target for applyOverride on the header row.
+                  // overrideKey({ company: X, name: X }) === X  (nm === co → returns plain company key)
+                  const companyContact = { company: companyName, name: companyName };
+                  // Display values for the header: company-level override wins, then meta's value
+                  const displayOrgType  = coOv.orgType  ?? meta.orgType;
+                  const displayIndustry = coOv.industry ?? meta.industry;
+                  const displayBasedIn  = coOv.basedIn  ?? meta.basedIn;
+
                   return (
                     <React.Fragment key={companyName + group[0].id}>
                       {/* Company header row */}
@@ -993,27 +1006,27 @@ export default function Admin({ contacts: rawContacts, loading }) {
                         </td>
                         <td style={{ padding: '9px 14px', color: '#6b6b85', whiteSpace: 'nowrap' }}>
                           <EditableCell
-                            value={meta.orgType}
+                            value={displayOrgType}
                             options={AVAILABLE_ORG_TYPES}
                             placeholder="org type"
-                            edited={!!localOverrides[overrideKey(meta)]?.orgType}
-                            onSave={v => applyOverride(meta, { orgType: v })}
+                            edited={!!coOv.orgType}
+                            onSave={v => applyOverride(companyContact, { orgType: v })}
                           />
                         </td>
                         <td style={{ padding: '9px 14px', color: '#6b6b85' }}>
                           <EditableCell
-                            value={meta.industry}
+                            value={displayIndustry}
                             placeholder="industry"
-                            edited={!!localOverrides[overrideKey(meta)]?.industry}
-                            onSave={v => applyOverride(meta, { industry: v })}
+                            edited={!!coOv.industry}
+                            onSave={v => applyOverride(companyContact, { industry: v })}
                           />
                         </td>
                         <td style={{ padding: '9px 14px', color: '#6b6b85', whiteSpace: 'nowrap' }}>
                           <EditableCell
-                            value={meta.basedIn}
+                            value={displayBasedIn}
                             placeholder="location"
-                            edited={!!localOverrides[overrideKey(meta)]?.basedIn}
-                            onSave={v => applyOverride(meta, { basedIn: v })}
+                            edited={!!coOv.basedIn}
+                            onSave={v => applyOverride(companyContact, { basedIn: v })}
                           />
                         </td>
                         <td style={{ padding: '9px 14px', maxWidth: '220px' }}>
