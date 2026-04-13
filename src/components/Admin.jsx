@@ -42,8 +42,8 @@ const ORG_PATTERNS = [
   { words: ['journalist', 'press', 'reporter', 'editor', 'media', 'publication', 'magazine', 'newspaper', 'broadcast', 'tv', 'radio'], orgTypes: ['Media'] },
   { words: ['investor', 'vc', 'venture', 'fund', 'capital', 'angel', 'family office', 'high-net-worth', 'hnw'], orgTypes: ['Investor', 'Family Office', 'High-Net-Worth Individual'] },
   { words: ['event organizer', 'event organiser', 'conference', 'event'], orgTypes: ['Event Organizer'] },
-  { words: ['startup', 'founder', 'early-stage', 'early stage'], orgTypes: ['Product Startup'] },
-  { words: ['scaleup', 'scale-up', 'scaleup'], orgTypes: ['Product Scaleup'] },
+  { words: ['startup', 'startups', 'founder', 'early-stage', 'early stage'], orgTypes: ['Product Startup'] },
+  { words: ['scaleup', 'scaleups', 'scale-up'], orgTypes: ['Product Scaleup'] },
   { words: ['accelerator', 'incubator'], orgTypes: ['Accelerator/ Incubator'] },
   { words: ['corporate', 'corporation', 'enterprise', 'bank'], orgTypes: ['Corporation', 'Bank'] },
   { words: ['ngo', 'non-profit', 'nonprofit', 'civil society'], orgTypes: ['NGO'] },
@@ -486,10 +486,17 @@ export default function Admin({ contacts, loading }) {
 
     const directIds = new Set(directMatches.map(c => c.id));
 
-    // AI mode: expanded criteria for everything except direct matches (already above)
+    // AI mode: expanded criteria for everything except direct matches (already above).
+    // When isFilterOnly (pure category search), AI matches must also satisfy the
+    // structured filter — prevents "EU-Startups" (industry: "Startup News/Content")
+    // from matching on the "startup" AI keyword when the user wants actual startups.
     if (aiExpansion) {
       const aiMatches = contacts
-        .filter(c => !directIds.has(c.id) && matchesAIFilter(c, aiExpansion))
+        .filter(c => {
+          if (directIds.has(c.id)) return false;
+          if (isFilterOnly && !matchesFilter(c, parsed)) return false;
+          return matchesAIFilter(c, aiExpansion);
+        })
         .sort((a, b) => richnessScore(b) - richnessScore(a));
       return [...directMatches, ...aiMatches];
     }
