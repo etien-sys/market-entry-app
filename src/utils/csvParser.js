@@ -93,10 +93,11 @@ export async function fetchContacts() {
     fetchNotionContacts(),
   ]);
 
-  // Sheet contacts: deduplicate by company name (org-centric)
-  // JSON contacts (LinkedIn/events): deduplicate by name+company (person-centric)
-  // Sheet takes priority over JSON for the same company
+  // Company-level entries (sheet, notion, curated): one per company name.
+  // Person-level entries (linkedin): one per (company + person name) — multiple
+  // people at the same company are all kept and grouped in the UI.
   const seenCompanies = new Set();
+  const seenPersons   = new Set();
   const merged = [];
 
   for (const c of sheetContacts) {
@@ -107,18 +108,19 @@ export async function fetchContacts() {
     }
   }
   for (const c of notionContacts) {
-    // Notion/events and curated entries: dedupe by name (org-centric)
     if (c.source !== 'linkedin') {
+      // Company-level: sheet takes priority; dedupe by company name
       const key = (c.company || c.name).toLowerCase().trim();
       if (!seenCompanies.has(key)) {
         seenCompanies.add(key);
         merged.push({ ...c, id: merged.length });
       }
     } else {
-      // LinkedIn: dedupe by person name + company (allow multiple people, one per company)
-      const companyKey = (c.company || '').toLowerCase().trim();
-      if (!seenCompanies.has(companyKey)) {
-        seenCompanies.add(companyKey);
+      // LinkedIn (person-level): keep all distinct people regardless of whether a
+      // company-level entry exists for the same org — they appear as sub-rows.
+      const personKey = ((c.company || '') + '|' + (c.name || '')).toLowerCase().trim();
+      if (!seenPersons.has(personKey)) {
+        seenPersons.add(personKey);
         merged.push({ ...c, id: merged.length });
       }
     }
