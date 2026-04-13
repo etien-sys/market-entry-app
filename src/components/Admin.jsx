@@ -171,10 +171,22 @@ Given a search query, return a JSON object:
 {
   "orgTypes": [],    // exact strings from the available list that match the intent
   "locations": [],   // country or city names to match against basedIn
-  "keywords": []     // broad keyword list for name/industry/notes/role — include synonyms, acronyms, related sectors
+  "keywords": []     // SUBJECT-MATTER keywords only — topic, sector, vertical
 }
 
-Be generous with keywords. "climate tech" → ["climate", "cleantech", "sustainability", "renewable", "carbon", "green", "ESG", "net zero", "clean energy"]. "fintech" → ["fintech", "financial technology", "payments", "banking", "lending", "insurance", "insurtech"]. Return ONLY the JSON, no markdown.`,
+CRITICAL RULE FOR KEYWORDS: keywords must describe the TOPIC/SUBJECT, not the job function.
+If orgTypes is non-empty, do NOT include words that describe the job function already captured
+by the orgType. Examples of what NOT to include:
+- orgType=Media → do NOT add: journalist, reporter, editor, writer, content, press, media, publication
+- orgType=Investor → do NOT add: investor, fund, capital, investment, venture, VC, portfolio
+- orgType=Event Organizer → do NOT add: event, conference, organizer, summit
+
+Instead, only include the TOPIC the user specified:
+"fintech journalists" → orgTypes:["Media"], keywords:["fintech","financial technology","payments","banking","insurtech","wealth management","lending"]
+"climate investors" → orgTypes:["Investor","Family Office"], keywords:["climate","cleantech","sustainability","renewable","carbon","ESG","net zero","green energy"]
+"AI startups" → orgTypes:["Product Startup","Product Scaleup"], keywords:["artificial intelligence","machine learning","AI","LLM","deep learning","generative AI"]
+
+Return ONLY the JSON, no markdown.`,
       messages: [{ role: 'user', content: query }],
     }),
   });
@@ -187,6 +199,12 @@ Be generous with keywords. "climate tech" → ["climate", "cleantech", "sustaina
 }
 
 function matchesAIFilter(c, { orgTypes, locations, keywords }) {
+  // When orgTypes are set, keywords describe the TOPIC — check against topic fields
+  // only (industry, notes, role), not orgType (already filtered) or name (company
+  // names like "EU-Startups" shouldn't match the topic "startup").
+  // When no orgTypes, also check name/company for broader discovery.
+  const topicText = [c.industry, c.notes, c.role, c.website, c.basedIn]
+    .map(f => (f || '').toLowerCase()).join(' ');
   const allText = [c.name, c.orgType, c.industry, c.basedIn, c.notes, c.role, c.website]
     .map(f => (f || '').toLowerCase()).join(' ');
 
@@ -194,8 +212,9 @@ function matchesAIFilter(c, { orgTypes, locations, keywords }) {
     || orgTypes.some(ot => (c.orgType || '').toLowerCase().includes(ot.toLowerCase()));
   const locMatch = locations.length === 0
     || locations.some(l => (c.basedIn || '').toLowerCase().includes(l.toLowerCase()));
+  const searchText = orgTypes.length > 0 ? topicText : allText;
   const kwMatch = keywords.length === 0
-    || keywords.some(kw => allText.includes(kw.toLowerCase()));
+    || keywords.some(kw => searchText.includes(kw.toLowerCase()));
 
   // Logic: if both orgType and location specified → must satisfy both; keywords are bonus
   // If only orgTypes → must satisfy orgType AND at least one keyword (if keywords provided)
