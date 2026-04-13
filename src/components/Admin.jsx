@@ -469,8 +469,19 @@ export default function Admin({ contacts, loading }) {
       return Infinity;
     }
 
+    // For pure orgType/location keyword searches (no leftover text), name-based
+    // direct matches only make sense when the contact also satisfies the filter.
+    // This prevents "Startups Magazine" (orgType=Media) from appearing at the top
+    // when searching "startups" (orgType filter for Product Startup).
+    // For plain text searches (no structured filter) all name matches are kept.
+    const isFilterOnly = (parsed.orgTypes.length > 0 || parsed.locations.length > 0) && !parsed.remainder;
+
     const directMatches = contacts
-      .filter(c => directScore(c) < Infinity)
+      .filter(c => {
+        if (directScore(c) >= Infinity) return false;
+        if (isFilterOnly) return matchesFilter(c, parsed);
+        return true;
+      })
       .sort((a, b) => directScore(a) - directScore(b) || richnessScore(b) - richnessScore(a));
 
     const directIds = new Set(directMatches.map(c => c.id));
