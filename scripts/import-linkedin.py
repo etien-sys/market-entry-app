@@ -89,7 +89,7 @@ For each item return:
 {{
   "orgType":    one of {json.dumps(ORG_TYPES)}, or "" if not sure,
   "industry":   short industry label (e.g. "Fintech", "SaaS", "Media", "AI / ML"), or "" if not sure,
-  "location":   country or city (e.g. "UAE", "Germany"), or "" if not sure,
+  "location":   country where THIS PERSON works (not company HQ), or "" if not sure,
   "confidence": "high" | "medium" | "low"
 }}
 
@@ -98,10 +98,15 @@ A podcast or newsletter is always Media. A PR/comms firm is always Service Provi
 "AI" in the company name strongly suggests AI / ML industry.
 
 Rules:
-- Use "Product Startup" for early-stage companies, "Product Scaleup" for growth-stage ones
+- Use "Product Startup" for early-stage companies, "Product Scaleup" for growth-stage ones.
+  Leave orgType="" for Product Startup/Scaleup unless you are very certain (>90%) — do not guess.
 - Use "Investor" for VCs, PE firms, angel investors; "Family Office" for family-owned investment vehicles
 - Use "Corporation" for large enterprises; "Bank" for financial institutions
-- Infer location from company HQ or person's likely base — company name or well-known brand often gives it away
+- LOCATION — set ONLY when the job title explicitly names the geography (e.g. "Head of Austria",
+  "DACH Director", "Bulgaria Country Manager", "Poland MD") OR the company name includes the country
+  (e.g. "Bosch Bulgaria", "Deutsche Bank", "Raiffeisen Bulgaria").
+  DO NOT infer location from company HQ (e.g. Salesforce → do NOT write "USA").
+  Never use "Global", "Europe", "EU", "Worldwide" — leave empty if unsure.
 - confidence "high" = you're certain; "medium" = reasonable guess; "low" = very uncertain"""
 
 def enrich_batch(batch):
