@@ -131,7 +131,14 @@ function matchesFilter(c, { orgTypes, locations, raw, remainder }) {
     return [name, company, role, notes, website, contact, basedIn].some(f => f.includes(raw));
   }
 
-  const orgMatch = orgTypes.length === 0 || orgTypes.some(ot => orgType.includes(ot.toLowerCase()));
+  // For Media: also match contacts whose role is clearly journalistic even if
+  // orgType wasn't set (e.g. "Senior Reporter" at FinTech Futures with no orgType).
+  const JOURNALIST_ROLE = /\b(journalist|reporter|correspondent|anchor|columnist|editor|newsroom)\b/i;
+  const orgMatch = orgTypes.length === 0 || orgTypes.some(ot => {
+    if (orgType.includes(ot.toLowerCase())) return true;
+    if (ot.toLowerCase() === 'media' && JOURNALIST_ROLE.test(c.role || '')) return true;
+    return false;
+  });
   const locMatch = locations.length === 0 || locations.some(l => basedIn.toLowerCase().includes(l.toLowerCase()));
 
   // If the query had leftover words beyond the keyword (e.g. "fintech" in "fintech media"),
@@ -199,11 +206,11 @@ Return ONLY the JSON, no markdown.`,
 }
 
 function matchesAIFilter(c, { orgTypes, locations, keywords }) {
-  // When orgTypes are set, keywords describe the TOPIC — check against topic fields
-  // only (industry, notes, role), not orgType (already filtered) or name (company
-  // names like "EU-Startups" shouldn't match the topic "startup").
-  // When no orgTypes, also check name/company for broader discovery.
-  const topicText = [c.industry, c.notes, c.role, c.website, c.basedIn]
+  // When orgTypes are set, keywords describe the TOPIC — check against topic fields.
+  // Include company name (e.g. "Fintech Futures" → matches "fintech") but exclude
+  // person name and orgType field to avoid noise.
+  // When no orgTypes, also include person name for broader discovery.
+  const topicText = [c.company, c.industry, c.notes, c.role, c.website, c.basedIn]
     .map(f => (f || '').toLowerCase()).join(' ');
   const allText = [c.name, c.orgType, c.industry, c.basedIn, c.notes, c.role, c.website]
     .map(f => (f || '').toLowerCase()).join(' ');
