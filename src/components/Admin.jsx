@@ -1,8 +1,67 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 
 const PURPLE = '#7c6fe0';
-const API_KEY_STORAGE = 'seti-admin-api-key';
-const BACKLOG_KEY = 'seti-gap-backlog';
+const API_KEY_STORAGE   = 'seti-admin-api-key';
+const BACKLOG_KEY       = 'seti-gap-backlog';
+const OVERRIDES_STORAGE = 'seti-contact-overrides';
+const GH_TOKEN_STORAGE  = 'seti-github-token';
+const GH_REPO           = 'etien-sys/market-entry-app';
+const GH_OVERRIDES_PATH = 'data/overrides.json';
+
+// ── Inline-edit helpers ───────────────────────────────────────────────────────
+
+function overrideKey(c) {
+  const co = (c.company || c.name || '').toLowerCase().trim();
+  const nm = (c.name    || '').toLowerCase().trim();
+  return (nm && nm !== co) ? `${co}|${nm}` : co;
+}
+
+function loadLocalOverrides() {
+  try { return JSON.parse(localStorage.getItem(OVERRIDES_STORAGE) || '{}'); } catch { return {}; }
+}
+
+// Inline editable cell — click to edit, Enter/blur to save
+function EditableCell({ value, onSave, options, placeholder, style, edited }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft]     = useState(value || '');
+  const ref = useRef();
+
+  useEffect(() => { if (editing) ref.current?.focus(); }, [editing]);
+
+  function commit() {
+    const trimmed = draft.trim();
+    if (trimmed !== (value || '')) onSave(trimmed);
+    setEditing(false);
+  }
+
+  if (editing) {
+    if (options) return (
+      <select ref={ref} value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={commit}
+        style={{ background: '#111119', color: '#e8e8f0', border: `1px solid ${PURPLE}`, borderRadius: '4px', fontSize: '12px', padding: '2px 4px' }}>
+        <option value="">—</option>
+        {options.map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+    );
+    return (
+      <input ref={ref} value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setDraft(value || ''); setEditing(false); } }}
+        placeholder={placeholder}
+        style={{ background: '#111119', color: '#e8e8f0', border: `1px solid ${PURPLE}`, borderRadius: '4px', fontSize: '12px', padding: '2px 6px', width: '100%', minWidth: '80px' }} />
+    );
+  }
+
+  return (
+    <span onClick={() => { setDraft(value || ''); setEditing(true); }}
+      title="Click to edit"
+      style={{ cursor: 'text', ...style, borderBottom: edited ? '1px dashed #7c6fe060' : undefined }}>
+      {value || <span style={{ color: '#2a2a40' }}>{placeholder || '—'}</span>}
+    </span>
+  );
+}
 
 // Hardcoded warmth overrides — will be replaced by Notion "Connection" field once synced
 const WARMTH_MAP = {
@@ -395,11 +454,83 @@ const SUGGESTIONS = [
   'climate tech companies', 'fintech investors in Europe', 'B2B SaaS startups',
 ];
 
-export default function Admin({ contacts, loading }) {
+export default function Admin({ contacts: rawContacts, loading }) {
   const [query, setQuery] = useState('');
   const [showOverview, setShowOverview] = useState(true);
 
-  // API key for AI search — auto-open the panel if no key is set yet
+  // ── Local overrides (inline edits) ──────────────────────────────────────────
+  const [localOverrides, setLocalOverrides] = useState(loadLocalOverrides);
+  const [ghToken, setGhToken]               = useState(() => localStorage.getItem(GH_TOKEN_STORAGE) || '');
+  const [ghStatus, setGhStatus]             = useState(null); // null | 'pushing' | 'ok' | string(error)
+  const [showEditPanel, setShowEditPanel]   = useState(false);
+
+  // Apply overrides on top of raw contacts
+  const contacts = useMemo(() => {
+    if (Object.keys(localOverrides).length === 0) return rawContacts;
+    return rawContacts.map(c => {
+      const ov = localOverrides[overrideKey(c)];
+      return ov ? { ...c, ...ov } : c;
+    });
+  }, [rawContacts, localOverrides]);
+
+  function applyOverride(c, patch) {
+    const key     = overrideKey(c);
+    const updated = { ...localOverrides, [key]: { ...(localOverrides[key] || {}), ...patch } };
+    setLocalOverrides(updated);
+    localStorage.setItem(OVERRIDES_STORAGE, JSON.stringify(updated));
+  }
+
+  function clearAllOverrides() {
+    setLocalOverrides({});
+    localStorage.removeItem(OVERRIDES_STORAGE);
+  }
+
+  async function pushToGitHub() {
+    if (!ghToken) return;
+    setGhStatus('pushing');
+    try {
+      // Read current overrides.json from GitHub
+      const getRes = await fetch(
+        `https://api.github.com/repos/${GH_REPO}/contents/${GH_OVERRIDES_PATH}`,
+        { headers: { Authorization: `token ${ghToken}`, Accept: 'application/vnd.github+json' } }
+      );
+      if (!getRes.ok) throw new Error(`GitHub read failed: ${getRes.status}`);
+      const fileData   = await getRes.json();
+      const currentObj = JSON.parse(atob(fileData.content.replace(/\n/g, '')));
+
+      // Merge: local overrides keyed as "co|name" map to company key in overrides.json
+      const merged = { ...currentObj };
+      for (const [k, patch] of Object.entries(localOverrides)) {
+        const coKey = k.includes('|') ? k.split('|')[0] : k;
+        merged[coKey] = { ...(merged[coKey] || {}), ...patch };
+      }
+
+      // Write back
+      const putRes = await fetch(
+        `https://api.github.com/repos/${GH_REPO}/contents/${GH_OVERRIDES_PATH}`,
+        {
+          method: 'PUT',
+          headers: { Authorization: `token ${ghToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: `chore: update contact overrides from admin UI (${Object.keys(localOverrides).length} changes)`,
+            content: btoa(unescape(encodeURIComponent(JSON.stringify(merged, null, 2)))),
+            sha: fileData.sha,
+            branch: 'claude/market-entry-navigator-mvp-n5McH',
+          }),
+        }
+      );
+      if (!putRes.ok) {
+        const err = await putRes.json();
+        throw new Error(err.message || `GitHub write failed: ${putRes.status}`);
+      }
+      setGhStatus('ok');
+      setTimeout(() => setGhStatus(null), 3000);
+    } catch (e) {
+      setGhStatus(e.message);
+    }
+  }
+
+  // ── API key for AI search — auto-open the panel if no key is set yet ────────
   const [apiKey, setApiKey] = useState(() => localStorage.getItem(API_KEY_STORAGE) || '');
   const [showKeyInput, setShowKeyInput] = useState(() => !localStorage.getItem(API_KEY_STORAGE));
   const [keyDraft, setKeyDraft] = useState(() => localStorage.getItem(API_KEY_STORAGE) || '');
@@ -564,7 +695,14 @@ export default function Admin({ contacts, loading }) {
             })()}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Pending edits button */}
+          {Object.keys(localOverrides).length > 0 && (
+            <button onClick={() => setShowEditPanel(o => !o)}
+              style={{ padding: '8px 14px', background: '#1a1400', border: '1px solid #fbbf2440', borderRadius: '8px', fontSize: '12px', color: '#fbbf24', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              ✎ {Object.keys(localOverrides).length} edit{Object.keys(localOverrides).length > 1 ? 's' : ''}
+            </button>
+          )}
           {/* AI key button */}
           <button
             onClick={() => { setShowKeyInput(o => !o); setKeyDraft(apiKey); }}
@@ -639,6 +777,60 @@ export default function Admin({ contacts, loading }) {
       {/* Network overview */}
       {showOverview && !loading && (
         <NetworkOverview contacts={contacts} onQuery={setQueryAndSearch} />
+      )}
+
+      {/* Edit panel — pending local changes + GitHub push */}
+      {showEditPanel && (
+        <div style={{ marginBottom: '20px', padding: '18px 20px', background: '#0f1400', border: '1px solid #fbbf2430', borderRadius: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+            <div>
+              <p style={{ fontSize: '13px', fontWeight: '700', color: '#fbbf24', marginBottom: '3px' }}>✎ Pending edits — {Object.keys(localOverrides).length} contact{Object.keys(localOverrides).length > 1 ? 's' : ''}</p>
+              <p style={{ fontSize: '12px', color: '#6b6b50', margin: 0 }}>Changes are live in your browser. Push to GitHub to make them permanent for everyone.</p>
+            </div>
+            <button onClick={() => setShowEditPanel(false)} style={{ fontSize: '12px', color: '#3a3a52', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+          </div>
+
+          {/* GitHub token */}
+          <div style={{ marginBottom: '12px' }}>
+            <p style={{ fontSize: '11px', color: '#6b6b50', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>GitHub Personal Access Token (repo write scope)</p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input type="password" value={ghToken}
+                onChange={e => { setGhToken(e.target.value); localStorage.setItem(GH_TOKEN_STORAGE, e.target.value); }}
+                placeholder="github_pat_… or ghp_…"
+                style={{ flex: 1, padding: '8px 12px', background: '#0d0d16', border: '1px solid #fbbf2430', borderRadius: '8px', fontSize: '12px', color: '#e8e8f0', outline: 'none', fontFamily: 'monospace' }} />
+              <button onClick={pushToGitHub} disabled={!ghToken || ghStatus === 'pushing'}
+                style={{ padding: '8px 18px', background: ghToken ? '#fbbf2420' : '#111', border: `1px solid ${ghToken ? '#fbbf2460' : '#1e1e2e'}`, borderRadius: '8px', fontSize: '12px', fontWeight: '700', color: ghToken ? '#fbbf24' : '#3a3a52', cursor: ghToken ? 'pointer' : 'default', whiteSpace: 'nowrap' }}>
+                {ghStatus === 'pushing' ? 'Pushing…' : ghStatus === 'ok' ? '✓ Pushed!' : 'Push to GitHub'}
+              </button>
+            </div>
+            {ghStatus && ghStatus !== 'pushing' && ghStatus !== 'ok' && (
+              <p style={{ fontSize: '11px', color: '#f87171', marginTop: '6px' }}>Error: {ghStatus}</p>
+            )}
+            <p style={{ fontSize: '11px', color: '#3a3a52', marginTop: '5px' }}>
+              Creates or updates <code style={{ color: '#4a4a65' }}>data/overrides.json</code> on your feature branch.
+              Generate a token at GitHub → Settings → Developer settings → Personal access tokens (classic), with <code style={{ color: '#4a4a65' }}>repo</code> scope.
+            </p>
+          </div>
+
+          {/* Preview of pending changes */}
+          <div style={{ marginBottom: '12px' }}>
+            <p style={{ fontSize: '11px', color: '#6b6b50', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pending changes</p>
+            <pre style={{ background: '#0a0a14', border: '1px solid #1e1e2e', borderRadius: '8px', padding: '12px', fontSize: '11px', color: '#6b6b85', overflowX: 'auto', margin: 0, maxHeight: '200px' }}>
+              {JSON.stringify(localOverrides, null, 2)}
+            </pre>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={() => { navigator.clipboard?.writeText(JSON.stringify(localOverrides, null, 2)); }}
+              style={{ padding: '7px 14px', background: 'transparent', border: '1px solid #1e1e2e', borderRadius: '8px', fontSize: '12px', color: '#4a4a65', cursor: 'pointer' }}>
+              Copy JSON
+            </button>
+            <button onClick={() => { if (window.confirm('Clear all local edits?')) clearAllOverrides(); }}
+              style={{ padding: '7px 14px', background: 'transparent', border: '1px solid #3a1a1a', borderRadius: '8px', fontSize: '12px', color: '#f87171', cursor: 'pointer' }}>
+              Clear all edits
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Search */}
@@ -799,9 +991,31 @@ export default function Admin({ contacts, loading }) {
                             </span>
                           )}
                         </td>
-                        <td style={{ padding: '9px 14px', color: '#6b6b85', whiteSpace: 'nowrap' }}>{meta.orgType}</td>
-                        <td style={{ padding: '9px 14px', color: '#6b6b85' }}>{meta.industry}</td>
-                        <td style={{ padding: '9px 14px', color: '#6b6b85', whiteSpace: 'nowrap' }}>{meta.basedIn}</td>
+                        <td style={{ padding: '9px 14px', color: '#6b6b85', whiteSpace: 'nowrap' }}>
+                          <EditableCell
+                            value={meta.orgType}
+                            options={AVAILABLE_ORG_TYPES}
+                            placeholder="org type"
+                            edited={!!localOverrides[overrideKey(meta)]?.orgType}
+                            onSave={v => applyOverride(meta, { orgType: v })}
+                          />
+                        </td>
+                        <td style={{ padding: '9px 14px', color: '#6b6b85' }}>
+                          <EditableCell
+                            value={meta.industry}
+                            placeholder="industry"
+                            edited={!!localOverrides[overrideKey(meta)]?.industry}
+                            onSave={v => applyOverride(meta, { industry: v })}
+                          />
+                        </td>
+                        <td style={{ padding: '9px 14px', color: '#6b6b85', whiteSpace: 'nowrap' }}>
+                          <EditableCell
+                            value={meta.basedIn}
+                            placeholder="location"
+                            edited={!!localOverrides[overrideKey(meta)]?.basedIn}
+                            onSave={v => applyOverride(meta, { basedIn: v })}
+                          />
+                        </td>
                         <td style={{ padding: '9px 14px', maxWidth: '220px' }}>
                           {allContacts[0] && <ContactCell value={allContacts[0]} />}
                         </td>
@@ -834,7 +1048,14 @@ export default function Admin({ contacts, loading }) {
                               )}
                             </td>
                             <td /><td />
-                            <td style={{ padding: '6px 14px', color: '#4a4a65', fontSize: '12px' }}>{c.basedIn}</td>
+                            <td style={{ padding: '6px 14px', color: '#4a4a65', fontSize: '12px' }}>
+                              <EditableCell
+                                value={c.basedIn}
+                                placeholder="location"
+                                edited={!!localOverrides[overrideKey(c)]?.basedIn}
+                                onSave={v => applyOverride(c, { basedIn: v })}
+                              />
+                            </td>
                             <td style={{ padding: '6px 14px', maxWidth: '220px' }}>
                               {c.contact && <ContactCell value={c.contact} />}
                             </td>
