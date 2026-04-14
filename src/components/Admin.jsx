@@ -282,13 +282,13 @@ function matchesAIFilter(c, { orgTypes, locations, keywords }) {
   const kwMatch = keywords.length === 0
     || keywords.some(kw => searchText.includes(kw.toLowerCase()));
 
-  // Logic: if both orgType and location specified → must satisfy both; keywords are bonus
-  // If only orgTypes → must satisfy orgType AND at least one keyword (if keywords provided)
-  // If only locations → must be in location AND have keyword match
-  // If only keywords → full text search
-  if (orgTypes.length > 0 && locations.length > 0) return orgMatch && locMatch;
-  if (orgTypes.length > 0) return orgMatch && (keywords.length === 0 || kwMatch);
-  if (locations.length > 0) return locMatch && (keywords.length === 0 || kwMatch);
+  // Keywords are always required when provided — never treated as "bonus".
+  // "healthtech founders from DACH" must match orgType AND location AND a health keyword;
+  // ignoring keywords would return every startup in DACH.
+  const kwRequired = keywords.length === 0 || kwMatch;
+  if (orgTypes.length > 0 && locations.length > 0) return orgMatch && locMatch && kwRequired;
+  if (orgTypes.length > 0) return orgMatch && kwRequired;
+  if (locations.length > 0) return locMatch && kwRequired;
   return kwMatch;
 }
 
