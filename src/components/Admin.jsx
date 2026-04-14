@@ -247,10 +247,13 @@ by the orgType. Examples of what NOT to include:
 - orgType=Investor → do NOT add: investor, fund, capital, investment, venture, VC, portfolio
 - orgType=Event Organizer → do NOT add: event, conference, organizer, summit
 
-Instead, only include the TOPIC the user specified:
-"fintech journalists" → orgTypes:["Media"], keywords:["fintech","financial technology","payments","banking","insurtech","wealth management","lending"]
-"climate investors" → orgTypes:["Investor","Family Office"], keywords:["climate","cleantech","sustainability","renewable","carbon","ESG","net zero","green energy"]
-"AI startups" → orgTypes:["Product Startup","Product Scaleup"], keywords:["artificial intelligence","machine learning","AI","LLM","deep learning","generative AI"]
+KEYWORD FORMAT: for each topic, include BOTH the compound term AND the short root word so the
+keywords match varied industry label formats in the database (e.g. "Health, Wellness and Fitness"):
+"healthtech founders" → keywords:["healthtech","health technology","health","medical","wellness","healthcare","medtech","biotech","clinical","pharma","life sciences"]
+"fintech journalists" → keywords:["fintech","financial technology","payments","banking","insurtech","wealth management","lending","finance"]
+"climate investors" → keywords:["climate","cleantech","sustainability","renewable","carbon","ESG","net zero","green energy","clean energy","environment"]
+"AI startups" → keywords:["artificial intelligence","machine learning","AI","LLM","deep learning","generative AI","neural network"]
+"cybersecurity companies" → keywords:["cybersecurity","security","infosec","cyber","threat","identity","zero trust","SIEM","SOC","vulnerability"]
 
 Return ONLY the JSON, no markdown.`,
       messages: [{ role: 'user', content: query }],
@@ -655,6 +658,23 @@ export default function Admin({ contacts: rawContacts, loading }) {
           return matchesAIFilter(c, aiExpansion);
         })
         .sort((a, b) => richnessScore(b) - richnessScore(a));
+
+      // Safety valve: if keywords + orgType/location produce zero results, fall back to
+      // orgType+location only so the user isn't left with an empty page. This can happen
+      // when the database lacks enough keyword-tagged contacts for a niche query.
+      if (aiMatches.length === 0 && directMatches.length === 0
+          && (aiExpansion.orgTypes.length > 0 || aiExpansion.locations.length > 0)
+          && aiExpansion.keywords.length > 0) {
+        const fallback = contacts
+          .filter(c => {
+            if (directIds.has(c.id)) return false;
+            if (isFilterOnly && !matchesFilter(c, parsed)) return false;
+            return matchesAIFilter(c, { ...aiExpansion, keywords: [] });
+          })
+          .sort((a, b) => richnessScore(b) - richnessScore(a));
+        return [...directMatches, ...fallback];
+      }
+
       return [...directMatches, ...aiMatches];
     }
 
