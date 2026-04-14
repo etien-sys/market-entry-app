@@ -12,6 +12,14 @@
   "hello tomorrow": { "orgType": "Event Organizer", "industry": "Events" },
   "the doers company": { "orgType": "Event Organizer", "industry": "Events" },
 
+  "_fix_fintech_events": "Fintech events whose names don't contain 'fintech' — set industry so keyword search finds them",
+  "money 20/20 europe 2026": { "industry": "Fintech" },
+  "money 20/20 usa 2026": { "industry": "Fintech" },
+  "money20/20": { "industry": "Fintech" },
+  "money motion": { "industry": "Fintech" },
+  "finovate europe 2026": { "industry": "Fintech" },
+  "mpe (merchant payments ecosystem)": { "industry": "Fintech" },
+
   "_fix_investors": "VCs mis-classified as Accelerator/Incubator",
   "e2vc": { "orgType": "Investor", "industry": "Venture Capital" },
 

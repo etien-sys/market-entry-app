@@ -100,7 +100,7 @@ function WarmthBadge({ value }) {
 const ORG_PATTERNS = [
   { words: ['journalist', 'press', 'reporter', 'editor', 'media', 'publication', 'magazine', 'newspaper', 'broadcast', 'tv', 'radio'], orgTypes: ['Media'] },
   { words: ['investor', 'vc', 'venture', 'fund', 'capital', 'angel', 'family office', 'high-net-worth', 'hnw'], orgTypes: ['Investor', 'Family Office', 'High-Net-Worth Individual'] },
-  { words: ['event organizer', 'event organiser', 'conference', 'event'], orgTypes: ['Event Organizer'] },
+  { words: ['event organizer', 'event organiser', 'conference', 'conferences', 'event', 'events', 'summit', 'expo'], orgTypes: ['Event Organizer'] },
   { words: ['startup', 'startups', 'founder', 'early-stage', 'early stage'], orgTypes: ['Product Startup'] },
   { words: ['scaleup', 'scaleups', 'scale-up'], orgTypes: ['Product Scaleup'] },
   { words: ['accelerator', 'incubator'], orgTypes: ['Accelerator/ Incubator'] },
