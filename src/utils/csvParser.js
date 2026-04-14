@@ -98,12 +98,16 @@ export async function fetchContacts() {
   // people at the same company are all kept and grouped in the UI.
   const seenCompanies = new Set();
   const seenPersons   = new Set();
+  // Tracks every person name added from a curated source (sheet or non-linkedin notion).
+  // Used to suppress LinkedIn duplicates when the same person already has a curated entry.
+  const seenCuratedNames = new Set();
   const merged = [];
 
   for (const c of sheetContacts) {
     const key = (c.company || c.name).toLowerCase().trim();
     if (!seenCompanies.has(key)) {
       seenCompanies.add(key);
+      if (c.name) seenCuratedNames.add(c.name.toLowerCase().trim());
       merged.push({ ...c, id: merged.length });
     }
   }
@@ -113,11 +117,16 @@ export async function fetchContacts() {
       const key = (c.company || c.name).toLowerCase().trim();
       if (!seenCompanies.has(key)) {
         seenCompanies.add(key);
+        if (c.name) seenCuratedNames.add(c.name.toLowerCase().trim());
         merged.push({ ...c, id: merged.length });
       }
     } else {
       // LinkedIn (person-level): keep all distinct people regardless of whether a
       // company-level entry exists for the same org — they appear as sub-rows.
+      // Skip if the exact same name is already present as a curated entry
+      // (e.g. sheet has "Norman Tambach" → suppress the LinkedIn duplicate).
+      const nm = (c.name || '').toLowerCase().trim();
+      if (nm && seenCuratedNames.has(nm)) continue;
       const personKey = ((c.company || '') + '|' + (c.name || '')).toLowerCase().trim();
       if (!seenPersons.has(personKey)) {
         seenPersons.add(personKey);
