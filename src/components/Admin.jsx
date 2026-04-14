@@ -395,7 +395,7 @@ const REGION_GROUPS = [
   { label: 'United Kingdom', query: 'contacts in united kingdom', locations: ['United Kingdom'] },
   { label: 'CEE', query: 'contacts in CEE', locations: ['Bulgaria', 'Romania', 'Poland', 'Greece', 'Czechia', 'Hungary', 'Croatia', 'Serbia', 'Slovakia', 'Albania', 'Ukraine', 'Estonia', 'Latvia', 'Lithuania', 'Moldova', 'Montenegro', 'North Macedonia', 'Bosnia and Herzegovina'] },
   { label: 'DACH', query: 'contacts in DACH', locations: ['Germany', 'Austria', 'Switzerland'] },
-  { label: 'UAE / MENA', query: 'investors in UAE', locations: ['UAE', 'United Arab Emirates', 'Dubai', 'Abu Dhabi', 'Sharjah', 'MENA'] },
+  { label: 'UAE / MENA', query: 'contacts in UAE', locations: ['UAE', 'United Arab Emirates', 'Dubai', 'Abu Dhabi', 'Sharjah', 'MENA'] },
 ];
 
 function NetworkOverview({ contacts, onQuery }) {
