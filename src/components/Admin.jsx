@@ -1044,7 +1044,8 @@ export default function Admin({ contacts: rawContacts, loading }) {
                       </tr>
                       {/* Person sub-rows */}
                       {people.map((c, pi) => {
-                        const isLinkedIn = c.source === 'linkedin';
+                        const isLinkedIn    = c.source === 'linkedin';
+                        const isHealthEvent = c.source === 'health-event';
                         const isLast = pi === people.length - 1;
                         const liUrl = isLinkedIn && c.website ? c.website : null;
                         return (
@@ -1056,6 +1057,8 @@ export default function Admin({ contacts: rawContacts, loading }) {
                             <td style={{ padding: '6px 14px' }}>
                               {isLinkedIn ? (
                                 <span style={{ fontSize: '10px', padding: '2px 7px', background: '#0a1429', border: '1px solid #1e4080', borderRadius: '10px', color: '#60a5fa', fontWeight: '700' }}>LinkedIn</span>
+                              ) : isHealthEvent ? (
+                                <span style={{ fontSize: '10px', padding: '2px 7px', background: '#0f1a20', border: '1px solid #10b98130', borderRadius: '10px', color: '#10b981', fontWeight: '700' }}>Health Event</span>
                               ) : (
                                 <span style={{ fontSize: '10px', padding: '2px 7px', background: '#0f1a0a', border: '1px solid #1a3010', borderRadius: '10px', color: '#34d399', fontWeight: '700' }}>Curated</span>
                               )}

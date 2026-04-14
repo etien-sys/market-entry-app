@@ -1,6 +1,9 @@
 const SHEET_URL =
   'https://docs.google.com/spreadsheets/d/1_REP2jJbLAuGXBe8cmXuFjgCiaXBHsra-KfDdmNFKpM/export?format=csv';
 
+const HEALTH_SHEET_URL =
+  'https://docs.google.com/spreadsheets/d/1HvdzZqgFV-wZLaArg830jjC0jifiwF9NPw5fDSkyEUg/export?format=csv';
+
 const ROW_NAME = /^row\s*\d+$/i;
 
 function nameFromWebsite(url) {
@@ -32,6 +35,25 @@ function parseCSVLine(line) {
   }
   result.push(current.trim());
   return result;
+}
+
+// Maps the "I am attending as a" field to a canonical orgType.
+// Multi-select values (comma-separated) are ranked by priority: Investor first.
+function mapHealthOrgType(val) {
+  if (!val) return '';
+  const PRIORITY = [
+    [['investor'], 'Investor'],
+    [['pharma', 'biotech', 'hospital', 'health system', 'insurance', 'payer'], 'Corporation'],
+    [['startup', 'founder'], 'Product Startup'],
+    [['researcher', 'academic'], 'Research'],
+    [['policymaker', 'public sector'], 'Policymaker/ Public Sector Agency'],
+    [['ecosystem'], 'Service Provider'],
+  ];
+  const parts = val.split(',').map(s => s.trim().toLowerCase());
+  for (const [keywords, orgType] of PRIORITY) {
+    if (parts.some(p => keywords.some(k => p.includes(k)))) return orgType;
+  }
+  return '';
 }
 
 async function fetchSheetContacts() {
@@ -86,23 +108,69 @@ async function fetchNotionContacts() {
   }
 }
 
+async function fetchHealthEventContacts() {
+  try {
+    const response = await fetch(HEALTH_SHEET_URL);
+    if (!response.ok) return [];
+    const text = await response.text();
+    const lines = text.split('\n').filter((l) => l.trim());
+    if (lines.length < 2) return [];
+    // Headers are kept as-is (lowercased) for lookup
+    const rawHeaders = parseCSVLine(lines[0]).map((h) => h.toLowerCase().trim());
+    return lines.slice(1).map((line) => {
+      const values = parseCSVLine(line);
+      const row = {};
+      rawHeaders.forEach((h, i) => { row[h] = (values[i] ?? '').trim(); });
+
+      // Prefer first_name + last_name (better casing); fall back to name column
+      const firstName = row['first_name'] || '';
+      const lastName  = row['last_name']  || '';
+      const fullName  = (firstName + ' ' + lastName).trim() || row['name'] || '';
+      if (!fullName) return null;
+
+      const company = row['what company do you work for?'] || '';
+      if (!company) return null;
+
+      const orgType  = mapHealthOrgType(row['i am attending as a'] || '');
+      const lookingFor = row['what are you looking for at this event? (multi-select)'] || '';
+
+      return {
+        name:     fullName,
+        role:     row['what is your job title?'] || '',
+        company:  company.trim(),
+        basedIn:  row['where is your company based?'] || '',
+        orgType,
+        industry: 'Health',
+        website:  '',
+        contact:  row['email'] || '',
+        notes:    lookingFor ? `Looking for: ${lookingFor}` : '',
+        tier:     parseTier(orgType),
+        source:   'health-event',
+      };
+    }).filter(Boolean);
+  } catch (_) {
+    return [];
+  }
+}
+
 export async function fetchContacts() {
-  // Fetch both sources in parallel and merge
-  const [sheetContacts, notionContacts] = await Promise.all([
+  // Fetch all sources in parallel and merge
+  const [sheetContacts, notionContacts, healthContacts] = await Promise.all([
     fetchSheetContacts(),
     fetchNotionContacts(),
+    fetchHealthEventContacts(),
   ]);
 
   // Company-level entries (sheet, notion, curated): one per company name.
-  // Person-level entries (linkedin): one per (company + person name) — multiple
-  // people at the same company are all kept and grouped in the UI.
-  const seenCompanies = new Set();
-  const seenPersons   = new Set();
-  // Tracks every person name added from a curated source (sheet or non-linkedin notion).
-  // Used to suppress LinkedIn duplicates when the same person already has a curated entry.
+  // Person-level entries (linkedin, health-event): one per (company + person name).
+  const seenCompanies    = new Set();
+  const seenPersons      = new Set();
+  // Tracks every person name added from a curated source.
+  // LinkedIn entries whose name is already present are suppressed.
   const seenCuratedNames = new Set();
   const merged = [];
 
+  // 1. Sheet contacts (company-level, highest priority)
   for (const c of sheetContacts) {
     const key = (c.company || c.name).toLowerCase().trim();
     if (!seenCompanies.has(key)) {
@@ -111,27 +179,39 @@ export async function fetchContacts() {
       merged.push({ ...c, id: merged.length });
     }
   }
+
+  // 2. Notion/contacts.json — company-level entries (non-linkedin)
   for (const c of notionContacts) {
-    if (c.source !== 'linkedin') {
-      // Company-level: sheet takes priority; dedupe by company name
-      const key = (c.company || c.name).toLowerCase().trim();
-      if (!seenCompanies.has(key)) {
-        seenCompanies.add(key);
-        if (c.name) seenCuratedNames.add(c.name.toLowerCase().trim());
-        merged.push({ ...c, id: merged.length });
-      }
-    } else {
-      // LinkedIn (person-level): keep all distinct people regardless of whether a
-      // company-level entry exists for the same org — they appear as sub-rows.
-      // Skip if the exact same name is already present as a curated entry
-      // (e.g. sheet has "Norman Tambach" → suppress the LinkedIn duplicate).
-      const nm = (c.name || '').toLowerCase().trim();
-      if (nm && seenCuratedNames.has(nm)) continue;
-      const personKey = ((c.company || '') + '|' + (c.name || '')).toLowerCase().trim();
-      if (!seenPersons.has(personKey)) {
-        seenPersons.add(personKey);
-        merged.push({ ...c, id: merged.length });
-      }
+    if (c.source === 'linkedin') continue;
+    const key = (c.company || c.name).toLowerCase().trim();
+    if (!seenCompanies.has(key)) {
+      seenCompanies.add(key);
+      if (c.name) seenCuratedNames.add(c.name.toLowerCase().trim());
+      merged.push({ ...c, id: merged.length });
+    }
+  }
+
+  // 3. Health event contacts (person-level, curated — higher priority than LinkedIn)
+  for (const c of healthContacts) {
+    const nm = (c.name || '').toLowerCase().trim();
+    if (nm && seenCuratedNames.has(nm)) continue; // already in curated data
+    const personKey = ((c.company || '') + '|' + nm).toLowerCase().trim();
+    if (!seenPersons.has(personKey)) {
+      seenPersons.add(personKey);
+      if (nm) seenCuratedNames.add(nm); // prevent LinkedIn duplicate for same person
+      merged.push({ ...c, id: merged.length });
+    }
+  }
+
+  // 4. LinkedIn contacts (person-level, lowest priority)
+  for (const c of notionContacts) {
+    if (c.source !== 'linkedin') continue;
+    const nm = (c.name || '').toLowerCase().trim();
+    if (nm && seenCuratedNames.has(nm)) continue; // curated/health entry already covers this person
+    const personKey = ((c.company || '') + '|' + nm).toLowerCase().trim();
+    if (!seenPersons.has(personKey)) {
+      seenPersons.add(personKey);
+      merged.push({ ...c, id: merged.length });
     }
   }
 
