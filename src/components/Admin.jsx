@@ -146,6 +146,15 @@ function wordMatch(text, word) {
   return new RegExp(`(^|[^a-z])${word}([^a-z]|$)`).test(text);
 }
 
+// Word-boundary location check — prevents "Oman" matching inside "Romania",
+// "Iran" inside "Ukraine", etc. Spaces are non-alpha so multi-word names work too.
+function locMatches(basedIn, loc) {
+  if (!basedIn || !loc) return false;
+  const b = basedIn.toLowerCase();
+  const l = loc.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^a-z])${l}([^a-z]|$)`).test(b);
+}
+
 function parseQuery(q) {
   const lower = q.toLowerCase();
   let remainder = lower;
@@ -199,7 +208,7 @@ function matchesFilter(c, { orgTypes, locations, raw, remainder }) {
     if (ot.toLowerCase() === 'media' && JOURNALIST_ROLE.test(c.role || '')) return true;
     return false;
   });
-  const locMatch = locations.length === 0 || locations.some(l => basedIn.toLowerCase().includes(l.toLowerCase()));
+  const locMatch = locations.length === 0 || locations.some(l => locMatches(basedIn, l));
 
   // If the query had leftover words beyond the keyword (e.g. "fintech" in "fintech media"),
   // require them to also match somewhere in the contact's text fields.
@@ -280,14 +289,12 @@ function matchesAIFilter(c, { orgTypes, locations, keywords }) {
 
   const orgMatch = orgTypes.length === 0
     || orgTypes.some(ot => (c.orgType || '').toLowerCase().includes(ot.toLowerCase()));
-  const basedInLower = (c.basedIn || '').toLowerCase();
   const locMatch = locations.length === 0
     || locations.some(l => {
-      const lLower = l.toLowerCase();
-      if (basedInLower.includes(lLower)) return true;
+      if (locMatches(c.basedIn, l)) return true;
       // Expand known region names (e.g. AI returns "Middle East" → check UAE, Saudi Arabia, etc.)
-      const expansion = LOCATION_MAP[lLower];
-      return expansion ? expansion.some(country => basedInLower.includes(country.toLowerCase())) : false;
+      const expansion = LOCATION_MAP[l.toLowerCase()];
+      return expansion ? expansion.some(country => locMatches(c.basedIn, country)) : false;
     });
   const searchText = orgTypes.length > 0 ? topicText : allText;
   const kwMatch = keywords.length === 0
@@ -411,7 +418,7 @@ function NetworkOverview({ contacts, onQuery }) {
     return contacts.filter(c => group.orgTypes.some(ot => (c.orgType || '').toLowerCase().includes(ot.toLowerCase()))).length;
   }
   function countForRegion(group) {
-    return contacts.filter(c => group.locations.some(l => (c.basedIn || '').toLowerCase().includes(l.toLowerCase()))).length;
+    return contacts.filter(c => group.locations.some(l => locMatches(c.basedIn, l))).length;
   }
 
   return (
