@@ -250,7 +250,7 @@ Given a search query, return a JSON object:
   "keywords": []     // SUBJECT-MATTER keywords only — topic, sector, vertical
 }
 
-CRITICAL RULE FOR KEYWORDS: keywords must describe the TOPIC/SUBJECT, not the job function.
+CRITICAL RULE FOR KEYWORDS: keywords must describe the TOPIC/SUBJECT — not job function, and NOT geographic or location terms (those always go in "locations" above, never in "keywords").
 If orgTypes is non-empty, do NOT include words that describe the job function already captured
 by the orgType. Examples of what NOT to include:
 - orgType=Media → do NOT add: journalist, reporter, editor, writer, content, press, media, publication
@@ -275,6 +275,24 @@ Return ONLY the JSON, no markdown.`,
   const text = (data.content[0]?.text || '').trim()
     .replace(/^```json?\n?/, '').replace(/\n?```$/, '');
   return JSON.parse(text);
+}
+
+// Post-process AI expansion: any geographic term the AI mistakenly put in keywords
+// gets moved to locations, preventing the safety valve from stripping the location
+// context and returning every corp/startup globally.
+function normalizeAIExpansion(raw) {
+  const extraLocs = [];
+  const kws = [];
+  for (const kw of (raw.keywords || [])) {
+    const mapped = LOCATION_MAP[kw.toLowerCase()];
+    if (mapped) extraLocs.push(...mapped);
+    else kws.push(kw);
+  }
+  return {
+    orgTypes:  raw.orgTypes  || [],
+    locations: [...new Set([...(raw.locations || []), ...extraLocs])],
+    keywords:  kws,
+  };
 }
 
 function matchesAIFilter(c, { orgTypes, locations, keywords }) {
@@ -585,7 +603,7 @@ export default function Admin({ contacts: rawContacts, loading }) {
 
     debounceRef.current = setTimeout(async () => {
       try {
-        const expansion = await expandQueryWithAI(query, apiKey);
+        const expansion = normalizeAIExpansion(await expandQueryWithAI(query, apiKey));
         setAiExpansion(expansion);
       } catch (err) {
         setAiError(err.message);
