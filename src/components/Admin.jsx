@@ -104,7 +104,7 @@ const ORG_PATTERNS = [
   { words: ['startup', 'startups', 'founder', 'early-stage', 'early stage'], orgTypes: ['Product Startup'] },
   { words: ['scaleup', 'scaleups', 'scale-up'], orgTypes: ['Product Scaleup'] },
   { words: ['accelerator', 'incubator'], orgTypes: ['Accelerator/ Incubator'] },
-  { words: ['corporate', 'corporation', 'enterprise', 'bank'], orgTypes: ['Corporation', 'Bank'] },
+  { words: ['corporate', 'corporation', 'corporations', 'enterprise', 'enterprises', 'bank', 'banks'], orgTypes: ['Corporation', 'Bank'] },
   { words: ['ngo', 'non-profit', 'nonprofit', 'civil society'], orgTypes: ['NGO'] },
   { words: ['service provider', 'consultant', 'agency', 'advisory'], orgTypes: ['Service Provider'] },
   { words: ['policymaker', 'government', 'ministry', 'public sector'], orgTypes: ['Policymaker/ Public Sector Agency'] },
@@ -117,7 +117,7 @@ const LOCATION_MAP = {
   'abu dhabi': ['Abu Dhabi', 'UAE', 'United Arab Emirates'],
   'mena': ['MENA', 'UAE', 'United Arab Emirates', 'Dubai', 'Abu Dhabi', 'Saudi Arabia', 'Qatar', 'Kuwait', 'Bahrain', 'Oman'],
   'gcc': ['MENA', 'UAE', 'United Arab Emirates', 'Dubai', 'Abu Dhabi', 'Saudi Arabia', 'Qatar', 'Kuwait', 'Bahrain', 'Oman'],
-  'middle east': ['UAE', 'United Arab Emirates', 'Dubai', 'Abu Dhabi', 'Sharjah', 'Saudi Arabia', 'Qatar', 'Kuwait', 'Bahrain', 'Oman', 'Jordan', 'Egypt', 'Israel', 'Lebanon', 'MENA'],
+  'middle east': ['UAE', 'United Arab Emirates', 'Dubai', 'Abu Dhabi', 'Sharjah', 'Saudi Arabia', 'Qatar', 'Kuwait', 'Bahrain', 'Oman', 'Jordan', 'Egypt', 'Lebanon', 'MENA'],
   'germany': ['Germany'], 'austria': ['Austria'], 'switzerland': ['Switzerland'],
   'dach': ['Germany', 'Austria', 'Switzerland'],
   'poland': ['Poland'], 'romania': ['Romania'], 'bulgaria': ['Bulgaria'],
@@ -257,7 +257,7 @@ ${AVAILABLE_ORG_TYPES.join(', ')}
 Given a search query, return a JSON object:
 {
   "orgTypes": [],    // exact strings from the available list that match the intent
-  "locations": [],   // country or city names to match against basedIn — for regions, list the specific countries (e.g. "Middle East" → ["UAE","Saudi Arabia","Qatar","Kuwait","Bahrain","Oman","Jordan","Egypt","Israel","Lebanon"]; "CEE" → ["Poland","Romania","Bulgaria","Czechia","Hungary","Croatia","Serbia","Slovakia"]; "DACH" → ["Germany","Austria","Switzerland"])
+  "locations": [],   // country or city names to match against basedIn — for regions, list the specific countries (e.g. "Middle East"/"MENA" → ["UAE","Saudi Arabia","Qatar","Kuwait","Bahrain","Oman","Jordan","Egypt","Lebanon"]; "CEE" → ["Poland","Romania","Bulgaria","Czechia","Hungary","Croatia","Serbia","Slovakia"]; "DACH" → ["Germany","Austria","Switzerland"])
   "keywords": []     // SUBJECT-MATTER keywords only — topic, sector, vertical
 }
 
@@ -268,6 +268,11 @@ by the orgType. Examples of what NOT to include:
 - orgType=Investor → do NOT add: investor, fund, capital, investment, venture, VC, portfolio
 - orgType=Event Organizer → do NOT add: event, conference, organizer, summit
 
+ORG TYPE RULES:
+- "enterprise/enterprises/corporate/corporations" → always include BOTH "Corporation" AND "Bank" (banks are enterprises)
+- "company/companies/organization/organizations" with no specific type → include Corporation, Bank, Product Startup, Product Scaleup, Service Provider
+- "startup/startups/founder" → "Product Startup" only (not Scaleup unless "scaleup" is mentioned)
+
 KEYWORD FORMAT: for each topic, include BOTH the compound term AND the short root word so the
 keywords match varied industry label formats in the database (e.g. "Health, Wellness and Fitness"):
 "healthtech founders" → keywords:["healthtech","health technology","health","medical","wellness","healthcare","medtech","biotech","clinical","pharma","life sciences"]
@@ -275,6 +280,7 @@ keywords match varied industry label formats in the database (e.g. "Health, Well
 "climate investors" → keywords:["climate","cleantech","sustainability","renewable","carbon","ESG","net zero","green energy","clean energy","environment"]
 "AI startups" → keywords:["artificial intelligence","machine learning","AI","LLM","deep learning","generative AI","neural network"]
 "cybersecurity companies" → keywords:["cybersecurity","security","infosec","cyber","threat","identity","zero trust","SIEM","SOC","vulnerability"]
+"enterprises in the middle east" → {"orgTypes":["Corporation","Bank"],"locations":["UAE","Saudi Arabia","Qatar","Kuwait","Bahrain","Oman","Jordan","Egypt","Lebanon"],"keywords":[]}
 
 Return ONLY the JSON, no markdown.`,
       messages: [{ role: 'user', content: query }],
@@ -1017,25 +1023,47 @@ export default function Admin({ contacts: rawContacts, loading }) {
                   groups[seen.get(key)].push(c);
                 }
 
+                // Pre-build lookup: company key → all person-level contacts in the full dataset.
+                // Used to augment each group with people who didn't individually match the search
+                // filter (e.g. an employee whose orgType differs from the company's orgType).
+                const allPeopleByCompany = new Map();
+                for (const c of contacts) {
+                  const nm = (c.name || '').toLowerCase().trim();
+                  const co = (c.company || '').toLowerCase().trim();
+                  if (!nm || nm === co) continue; // skip company-level entries
+                  if (!co) continue;
+                  if (!allPeopleByCompany.has(co)) allPeopleByCompany.set(co, []);
+                  allPeopleByCompany.get(co).push(c);
+                }
+
                 return groups.map((group) => {
                   const companyName = group[0].company || group[0].name || '';
+                  const groupKey = companyName.toLowerCase().trim();
+
+                  // Augment group with any person-level contacts from the full dataset
+                  // that belong to this company but didn't make it into the filtered results
+                  const groupIds = new Set(group.map(g => g.id));
+                  const extraPeople = (allPeopleByCompany.get(groupKey) || [])
+                    .filter(c => !groupIds.has(c.id));
+                  const fullGroup = extraPeople.length > 0 ? [...group, ...extraPeople] : group;
+
                   // Use best metadata: prefer curated entries for org info
-                  const meta = group.find(c => c.source !== 'linkedin' && (c.orgType || c.industry || c.basedIn))
-                    || group.find(c => c.orgType || c.industry || c.basedIn)
-                    || group[0];
-                  const connection = group.find(c => c.connection)?.connection;
+                  const meta = fullGroup.find(c => c.source !== 'linkedin' && (c.orgType || c.industry || c.basedIn))
+                    || fullGroup.find(c => c.orgType || c.industry || c.basedIn)
+                    || fullGroup[0];
+                  const connection = fullGroup.find(c => c.connection)?.connection;
                   const connStyle = connection === 'warm'
                     ? { color: '#34d399', bg: '#0f1a0a', border: '#34d39940' }
                     : connection === 'cold'
                     ? { color: '#60a5fa', bg: '#0a1429', border: '#60a5fa40' }
                     : null;
                   // People = contacts with a distinct person name; company-level entries last
-                  const people = group.filter(c => c.name && c.name !== c.company);
-                  const companyEntries = group.filter(c => !c.name || c.name === c.company);
+                  const people = fullGroup.filter(c => c.name && c.name !== c.company);
+                  const companyEntries = fullGroup.filter(c => !c.name || c.name === c.company);
 
                   // Collect all contacts/websites from the group
-                  const allContacts = [...new Set(group.map(c => c.contact).filter(Boolean))];
-                  const mainWebsite = meta.website || group.find(c => c.website && c.source !== 'linkedin')?.website || '';
+                  const allContacts = [...new Set(fullGroup.map(c => c.contact).filter(Boolean))];
+                  const mainWebsite = meta.website || fullGroup.find(c => c.website && c.source !== 'linkedin')?.website || '';
                   const websiteLabel = mainWebsite ? mainWebsite.replace(/^https?:\/\/(www\.)?/, '').split('/')[0] : null;
 
                   // Company-level override key is always the bare company name — never a person key.
@@ -1052,7 +1080,7 @@ export default function Admin({ contacts: rawContacts, loading }) {
                   const displayBasedIn  = coOv.basedIn  ?? meta.basedIn;
 
                   return (
-                    <React.Fragment key={companyName + group[0].id}>
+                    <React.Fragment key={groupKey}>
                       {/* Company header row */}
                       <tr style={{ borderBottom: people.length ? 'none' : '1px solid #0f0f1a', background: '#0d0d17' }}>
                         <td style={{ padding: '9px 14px', fontWeight: '600', whiteSpace: 'nowrap' }}>
