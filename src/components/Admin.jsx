@@ -155,6 +155,17 @@ function locMatches(basedIn, loc) {
   return new RegExp(`(^|[^a-z])${l}([^a-z]|$)`).test(b);
 }
 
+// Check basedIn against a list of location strings, expanding region names via LOCATION_MAP.
+// Used both in matchesFilter (parsed locations) and matchesAIFilter (AI locations).
+function locationMatchAny(basedIn, locations) {
+  if (!locations || locations.length === 0) return true;
+  return locations.some(l => {
+    if (locMatches(basedIn, l)) return true;
+    const expansion = LOCATION_MAP[l.toLowerCase()];
+    return expansion ? expansion.some(c => locMatches(basedIn, c)) : false;
+  });
+}
+
 function parseQuery(q) {
   const lower = q.toLowerCase();
   let remainder = lower;
@@ -208,7 +219,7 @@ function matchesFilter(c, { orgTypes, locations, raw, remainder }) {
     if (ot.toLowerCase() === 'media' && JOURNALIST_ROLE.test(c.role || '')) return true;
     return false;
   });
-  const locMatch = locations.length === 0 || locations.some(l => locMatches(basedIn, l));
+  const locMatch = locationMatchAny(basedIn, locations);
 
   // If the query had leftover words beyond the keyword (e.g. "fintech" in "fintech media"),
   // require them to also match somewhere in the contact's text fields.
@@ -307,13 +318,7 @@ function matchesAIFilter(c, { orgTypes, locations, keywords }) {
 
   const orgMatch = orgTypes.length === 0
     || orgTypes.some(ot => (c.orgType || '').toLowerCase().includes(ot.toLowerCase()));
-  const locMatch = locations.length === 0
-    || locations.some(l => {
-      if (locMatches(c.basedIn, l)) return true;
-      // Expand known region names (e.g. AI returns "Middle East" → check UAE, Saudi Arabia, etc.)
-      const expansion = LOCATION_MAP[l.toLowerCase()];
-      return expansion ? expansion.some(country => locMatches(c.basedIn, country)) : false;
-    });
+  const locMatch = locationMatchAny(c.basedIn, locations);
   const searchText = orgTypes.length > 0 ? topicText : allText;
   const kwMatch = keywords.length === 0
     || keywords.some(kw => searchText.includes(kw.toLowerCase()));
@@ -684,9 +689,16 @@ export default function Admin({ contacts: rawContacts, loading }) {
     // structured filter — prevents "EU-Startups" (industry: "Startup News/Content")
     // from matching on the "startup" AI keyword when the user wants actual startups.
     if (aiExpansion) {
+      // parsed.locations comes from explicit location keywords the user typed (e.g. "middle east"
+      // → [UAE, Saudi Arabia, ...]). Always enforce this as a hard constraint so AI failures
+      // (wrong expansion, missing locations, geographic terms left in keywords) can never
+      // return contacts from the wrong region.
+      const hasParsedLoc = parsed.locations.length > 0;
+
       const aiMatches = contacts
         .filter(c => {
           if (directIds.has(c.id)) return false;
+          if (hasParsedLoc && !locationMatchAny(c.basedIn, parsed.locations)) return false;
           if (isFilterOnly && !matchesFilter(c, parsed)) return false;
           return matchesAIFilter(c, aiExpansion);
         })
@@ -696,11 +708,12 @@ export default function Admin({ contacts: rawContacts, loading }) {
       // orgType+location only so the user isn't left with an empty page. This can happen
       // when the database lacks enough keyword-tagged contacts for a niche query.
       if (aiMatches.length === 0 && directMatches.length === 0
-          && (aiExpansion.orgTypes.length > 0 || aiExpansion.locations.length > 0)
+          && (aiExpansion.orgTypes.length > 0 || aiExpansion.locations.length > 0 || hasParsedLoc)
           && aiExpansion.keywords.length > 0) {
         const fallback = contacts
           .filter(c => {
             if (directIds.has(c.id)) return false;
+            if (hasParsedLoc && !locationMatchAny(c.basedIn, parsed.locations)) return false;
             if (isFilterOnly && !matchesFilter(c, parsed)) return false;
             return matchesAIFilter(c, { ...aiExpansion, keywords: [] });
           })
