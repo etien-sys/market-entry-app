@@ -695,33 +695,37 @@ export default function Admin({ contacts: rawContacts, loading }) {
     // structured filter — prevents "EU-Startups" (industry: "Startup News/Content")
     // from matching on the "startup" AI keyword when the user wants actual startups.
     if (aiExpansion) {
-      // parsed.locations comes from explicit location keywords the user typed (e.g. "middle east"
-      // → [UAE, Saudi Arabia, ...]). Always enforce this as a hard constraint so AI failures
-      // (wrong expansion, missing locations, geographic terms left in keywords) can never
-      // return contacts from the wrong region.
+      // Merge parsed orgTypes + locations into the AI expansion so explicit keywords
+      // in the user's query are never lost if the AI under-expands.
+      // e.g. "enterprises" → parsed gives [Corporation, Bank]; AI might only return
+      // [Corporation] — the union ensures Bank contacts (like Mashreq) still match.
+      const mergedExpansion = {
+        ...aiExpansion,
+        orgTypes:  [...new Set([...parsed.orgTypes,  ...aiExpansion.orgTypes])],
+        locations: [...new Set([...parsed.locations, ...aiExpansion.locations])],
+      };
       const hasParsedLoc = parsed.locations.length > 0;
 
       const aiMatches = contacts
         .filter(c => {
           if (directIds.has(c.id)) return false;
-          if (hasParsedLoc && !locationMatchAny(c.basedIn, parsed.locations)) return false;
+          if (hasParsedLoc && !locationMatchAny(c.basedIn, mergedExpansion.locations)) return false;
           if (isFilterOnly && !matchesFilter(c, parsed)) return false;
-          return matchesAIFilter(c, aiExpansion);
+          return matchesAIFilter(c, mergedExpansion);
         })
         .sort((a, b) => richnessScore(b) - richnessScore(a));
 
       // Safety valve: if keywords + orgType/location produce zero results, fall back to
-      // orgType+location only so the user isn't left with an empty page. This can happen
-      // when the database lacks enough keyword-tagged contacts for a niche query.
+      // orgType+location only so the user isn't left with an empty page.
       if (aiMatches.length === 0 && directMatches.length === 0
-          && (aiExpansion.orgTypes.length > 0 || aiExpansion.locations.length > 0 || hasParsedLoc)
-          && aiExpansion.keywords.length > 0) {
+          && (mergedExpansion.orgTypes.length > 0 || mergedExpansion.locations.length > 0)
+          && mergedExpansion.keywords.length > 0) {
         const fallback = contacts
           .filter(c => {
             if (directIds.has(c.id)) return false;
-            if (hasParsedLoc && !locationMatchAny(c.basedIn, parsed.locations)) return false;
+            if (hasParsedLoc && !locationMatchAny(c.basedIn, mergedExpansion.locations)) return false;
             if (isFilterOnly && !matchesFilter(c, parsed)) return false;
-            return matchesAIFilter(c, { ...aiExpansion, keywords: [] });
+            return matchesAIFilter(c, { ...mergedExpansion, keywords: [] });
           })
           .sort((a, b) => richnessScore(b) - richnessScore(a));
         return [...directMatches, ...fallback];
