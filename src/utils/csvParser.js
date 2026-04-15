@@ -170,12 +170,26 @@ export async function fetchContacts() {
   const seenCuratedNames = new Set();
   const merged = [];
 
-  // 1. Sheet contacts (company-level, highest priority)
+  // 1. Sheet contacts — highest priority, curated source.
+  // Company-level entries (name === company) dedup by company key.
+  // Person-level entries (name ≠ company, e.g. "Cherian Varghese" at "Oracle") dedup
+  // by name+company pair so multiple people from the same company all make it through.
   for (const c of sheetContacts) {
-    const key = (c.company || c.name).toLowerCase().trim();
-    if (!seenCompanies.has(key)) {
-      seenCompanies.add(key);
-      if (c.name) seenCuratedNames.add(c.name.toLowerCase().trim());
+    const nm = (c.name || '').toLowerCase().trim();
+    const co = (c.company || c.name || '').toLowerCase().trim();
+    if (nm && nm !== co) {
+      // Person-level sheet entry
+      if (nm && seenCuratedNames.has(nm)) continue;
+      const personKey = co + '|' + nm;
+      if (seenPersons.has(personKey)) continue;
+      seenPersons.add(personKey);
+      seenCuratedNames.add(nm);
+      merged.push({ ...c, id: merged.length });
+    } else {
+      // Company-level sheet entry
+      if (seenCompanies.has(co)) continue;
+      seenCompanies.add(co);
+      if (c.name) seenCuratedNames.add(nm);
       merged.push({ ...c, id: merged.length });
     }
   }
