@@ -180,9 +180,9 @@ export async function fetchContacts() {
     }
   }
 
-  // 2. Notion/contacts.json — company-level entries (non-linkedin)
+  // 2. Notion/contacts.json — company-level entries (non-linkedin, non-dealflow)
   for (const c of notionContacts) {
-    if (c.source === 'linkedin') continue;
+    if (c.source === 'linkedin' || c.source === 'dealflow') continue;
     const key = (c.company || c.name).toLowerCase().trim();
     if (!seenCompanies.has(key)) {
       seenCompanies.add(key);
@@ -199,6 +199,19 @@ export async function fetchContacts() {
     if (!seenPersons.has(personKey)) {
       seenPersons.add(personKey);
       if (nm) seenCuratedNames.add(nm); // prevent LinkedIn duplicate for same person
+      merged.push({ ...c, id: merged.length });
+    }
+  }
+
+  // 3b. Dealflow contacts (person-level, curated — higher priority than LinkedIn)
+  for (const c of notionContacts) {
+    if (c.source !== 'dealflow') continue;
+    const nm = (c.name || '').toLowerCase().trim();
+    if (nm && seenCuratedNames.has(nm)) continue;
+    const personKey = ((c.company || '') + '|' + nm).toLowerCase().trim();
+    if (!seenPersons.has(personKey)) {
+      seenPersons.add(personKey);
+      if (nm) seenCuratedNames.add(nm);
       merged.push({ ...c, id: merged.length });
     }
   }

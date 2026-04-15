@@ -115,8 +115,9 @@ const LOCATION_MAP = {
   'uae': ['UAE', 'United Arab Emirates', 'Dubai', 'Abu Dhabi', 'Sharjah', 'MENA'],
   'dubai': ['Dubai', 'UAE', 'United Arab Emirates'],
   'abu dhabi': ['Abu Dhabi', 'UAE', 'United Arab Emirates'],
-  'mena': ['MENA', 'UAE', 'United Arab Emirates', 'Dubai', 'Abu Dhabi'],
-  'gcc': ['MENA', 'UAE', 'United Arab Emirates', 'Dubai', 'Abu Dhabi'],
+  'mena': ['MENA', 'UAE', 'United Arab Emirates', 'Dubai', 'Abu Dhabi', 'Saudi Arabia', 'Qatar', 'Kuwait', 'Bahrain', 'Oman'],
+  'gcc': ['MENA', 'UAE', 'United Arab Emirates', 'Dubai', 'Abu Dhabi', 'Saudi Arabia', 'Qatar', 'Kuwait', 'Bahrain', 'Oman'],
+  'middle east': ['UAE', 'United Arab Emirates', 'Dubai', 'Abu Dhabi', 'Sharjah', 'Saudi Arabia', 'Qatar', 'Kuwait', 'Bahrain', 'Oman', 'Jordan', 'Egypt', 'Israel', 'Lebanon', 'MENA'],
   'germany': ['Germany'], 'austria': ['Austria'], 'switzerland': ['Switzerland'],
   'dach': ['Germany', 'Austria', 'Switzerland'],
   'poland': ['Poland'], 'romania': ['Romania'], 'bulgaria': ['Bulgaria'],
@@ -236,7 +237,7 @@ ${AVAILABLE_ORG_TYPES.join(', ')}
 Given a search query, return a JSON object:
 {
   "orgTypes": [],    // exact strings from the available list that match the intent
-  "locations": [],   // country or city names to match against basedIn
+  "locations": [],   // country or city names to match against basedIn — for regions, list the specific countries (e.g. "Middle East" → ["UAE","Saudi Arabia","Qatar","Kuwait","Bahrain","Oman","Jordan","Egypt","Israel","Lebanon"]; "CEE" → ["Poland","Romania","Bulgaria","Czechia","Hungary","Croatia","Serbia","Slovakia"]; "DACH" → ["Germany","Austria","Switzerland"])
   "keywords": []     // SUBJECT-MATTER keywords only — topic, sector, vertical
 }
 
@@ -279,8 +280,15 @@ function matchesAIFilter(c, { orgTypes, locations, keywords }) {
 
   const orgMatch = orgTypes.length === 0
     || orgTypes.some(ot => (c.orgType || '').toLowerCase().includes(ot.toLowerCase()));
+  const basedInLower = (c.basedIn || '').toLowerCase();
   const locMatch = locations.length === 0
-    || locations.some(l => (c.basedIn || '').toLowerCase().includes(l.toLowerCase()));
+    || locations.some(l => {
+      const lLower = l.toLowerCase();
+      if (basedInLower.includes(lLower)) return true;
+      // Expand known region names (e.g. AI returns "Middle East" → check UAE, Saudi Arabia, etc.)
+      const expansion = LOCATION_MAP[lLower];
+      return expansion ? expansion.some(country => basedInLower.includes(country.toLowerCase())) : false;
+    });
   const searchText = orgTypes.length > 0 ? topicText : allText;
   const kwMatch = keywords.length === 0
     || keywords.some(kw => searchText.includes(kw.toLowerCase()));
