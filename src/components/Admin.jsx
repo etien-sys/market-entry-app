@@ -21,12 +21,17 @@ function loadLocalOverrides() {
 }
 
 // Inline editable cell — click to edit, Enter/blur to save
-function EditableCell({ value, onSave, options, placeholder, style, edited }) {
+// renderDisplay(value): optional custom renderer for the non-editing state;
+// receives the current value and should return JSX. Use onClick={e=>e.stopPropagation()}
+// on any inner links to prevent a click from also triggering edit mode.
+function EditableCell({ value, onSave, options, placeholder, style, edited, renderDisplay }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft]     = useState(value || '');
   const ref = useRef();
 
   useEffect(() => { if (editing) ref.current?.focus(); }, [editing]);
+  // Sync draft when value changes from outside (e.g. after override applied)
+  useEffect(() => { if (!editing) setDraft(value || ''); }, [value, editing]);
 
   function commit() {
     const trimmed = draft.trim();
@@ -51,6 +56,16 @@ function EditableCell({ value, onSave, options, placeholder, style, edited }) {
         onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setDraft(value || ''); setEditing(false); } }}
         placeholder={placeholder}
         style={{ background: '#111119', color: '#e8e8f0', border: `1px solid ${PURPLE}`, borderRadius: '4px', fontSize: '12px', padding: '2px 6px', width: '100%', minWidth: '80px' }} />
+    );
+  }
+
+  if (renderDisplay) {
+    return (
+      <span onClick={() => { setDraft(value || ''); setEditing(true); }}
+        title="Click to edit"
+        style={{ cursor: 'text', display: 'inline-block', borderBottom: edited ? '1px dashed #7c6fe060' : undefined }}>
+        {renderDisplay(value)}
+      </span>
     );
   }
 
@@ -1082,6 +1097,8 @@ export default function Admin({ contacts: rawContacts, loading }) {
                   const displayOrgType  = coOv.orgType  ?? meta.orgType;
                   const displayIndustry = coOv.industry ?? meta.industry;
                   const displayBasedIn  = coOv.basedIn  ?? meta.basedIn;
+                  const displayContact  = coOv.contact  ?? (allContacts[0] || '');
+                  const displayWebsite  = coOv.website  ?? mainWebsite;
 
                   return (
                     <React.Fragment key={groupKey}>
@@ -1128,16 +1145,29 @@ export default function Admin({ contacts: rawContacts, loading }) {
                           />
                         </td>
                         <td style={{ padding: '9px 14px', maxWidth: '220px' }}>
-                          {allContacts[0] && <ContactCell value={allContacts[0]} />}
+                          <EditableCell
+                            value={displayContact}
+                            placeholder="contact"
+                            edited={!!coOv.contact}
+                            onSave={v => applyOverride(companyContact, { contact: v })}
+                            renderDisplay={val => val ? <ContactCell value={val} /> : <span style={{ color: '#2a2a40' }}>—</span>}
+                          />
                         </td>
                         <td style={{ padding: '9px 14px' }}>
-                          {websiteLabel && (
-                            <a href={mainWebsite} target="_blank" rel="noreferrer"
-                              style={{ color: PURPLE, fontSize: '12px', textDecoration: 'none' }}
-                              onMouseOver={e => { e.currentTarget.style.textDecoration = 'underline'; }}
-                              onMouseOut={e => { e.currentTarget.style.textDecoration = 'none'; }}
-                            >{websiteLabel}</a>
-                          )}
+                          <EditableCell
+                            value={displayWebsite}
+                            placeholder="website"
+                            edited={!!coOv.website}
+                            onSave={v => applyOverride(companyContact, { website: v })}
+                            renderDisplay={val => val ? (
+                              <a href={val} target="_blank" rel="noreferrer"
+                                onClick={e => e.stopPropagation()}
+                                style={{ color: PURPLE, fontSize: '12px', textDecoration: 'none' }}
+                                onMouseOver={e => { e.currentTarget.style.textDecoration = 'underline'; }}
+                                onMouseOut={e => { e.currentTarget.style.textDecoration = 'none'; }}
+                              >{val.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}</a>
+                            ) : <span style={{ color: '#2a2a40' }}>—</span>}
+                          />
                         </td>
                       </tr>
                       {/* Person sub-rows */}
@@ -1150,7 +1180,14 @@ export default function Admin({ contacts: rawContacts, loading }) {
                           <tr key={c.id} style={{ borderBottom: isLast ? '2px solid #1a1a2e' : '1px solid #0a0a14', background: '#08080f' }}>
                             <td style={{ padding: '6px 14px 6px 28px', whiteSpace: 'nowrap' }}>
                               <span style={{ color: '#c8c8e0', fontWeight: '500' }}>{c.name}</span>
-                              {c.role && <span style={{ color: '#4a4a65', fontSize: '11px' }}> · {c.role}</span>}
+                              {' '}
+                              <EditableCell
+                                value={c.role || ''}
+                                placeholder="role"
+                                edited={!!localOverrides[overrideKey(c)]?.role}
+                                onSave={v => applyOverride(c, { role: v })}
+                                style={{ color: '#4a4a65', fontSize: '11px' }}
+                              />
                             </td>
                             <td style={{ padding: '6px 14px' }}>
                               {isLinkedIn ? (
@@ -1171,16 +1208,29 @@ export default function Admin({ contacts: rawContacts, loading }) {
                               />
                             </td>
                             <td style={{ padding: '6px 14px', maxWidth: '220px' }}>
-                              {c.contact && <ContactCell value={c.contact} />}
+                              <EditableCell
+                                value={c.contact || ''}
+                                placeholder="contact"
+                                edited={!!localOverrides[overrideKey(c)]?.contact}
+                                onSave={v => applyOverride(c, { contact: v })}
+                                renderDisplay={val => val ? <ContactCell value={val} /> : <span style={{ color: '#2a2a40' }}>—</span>}
+                              />
                             </td>
                             <td style={{ padding: '6px 14px' }}>
-                              {liUrl && (
-                                <a href={liUrl} target="_blank" rel="noreferrer"
-                                  style={{ color: '#3a3a5a', fontSize: '12px', textDecoration: 'none' }}
-                                  onMouseOver={e => { e.currentTarget.style.color = PURPLE; }}
-                                  onMouseOut={e => { e.currentTarget.style.color = '#3a3a5a'; }}
-                                >LinkedIn ↗</a>
-                              )}
+                              <EditableCell
+                                value={c.website || ''}
+                                placeholder="website"
+                                edited={!!localOverrides[overrideKey(c)]?.website}
+                                onSave={v => applyOverride(c, { website: v })}
+                                renderDisplay={val => val ? (
+                                  <a href={val} target="_blank" rel="noreferrer"
+                                    onClick={e => e.stopPropagation()}
+                                    style={{ color: '#3a3a5a', fontSize: '12px', textDecoration: 'none' }}
+                                    onMouseOver={e => { e.currentTarget.style.color = PURPLE; }}
+                                    onMouseOut={e => { e.currentTarget.style.color = '#3a3a5a'; }}
+                                  >{isLinkedIn && val.includes('linkedin') ? 'LinkedIn ↗' : val.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}</a>
+                                ) : <span style={{ color: '#2a2a40' }}>—</span>}
+                              />
                             </td>
                           </tr>
                         );

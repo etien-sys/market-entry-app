@@ -161,32 +161,31 @@ export async function fetchContacts() {
     fetchHealthEventContacts(),
   ]);
 
-  // Company-level entries (sheet, notion, curated): one per company name.
-  // Person-level entries (linkedin, health-event): one per (company + person name).
   const seenCompanies    = new Set();
   const seenPersons      = new Set();
-  // Tracks every person name added from a curated source.
-  // LinkedIn entries whose name is already present are suppressed.
   const seenCuratedNames = new Set();
   const merged = [];
+  // Track index in merged for person-level sheet entries so LinkedIn can supplement
+  // missing fields (e.g. Norman in sheet has empty basedIn; LinkedIn has 'UAE').
+  const sheetPersonIdx   = new Map(); // personKey → merged index
 
   // 1. Sheet contacts — highest priority, curated source.
   // Company-level entries (name === company) dedup by company key.
-  // Person-level entries (name ≠ company, e.g. "Cherian Varghese" at "Oracle") dedup
-  // by name+company pair so multiple people from the same company all make it through.
+  // Person-level entries (name ≠ company) dedup by name+company pair so multiple
+  // people from the same company (e.g. two Oracle contacts) all make it through.
   for (const c of sheetContacts) {
     const nm = (c.name || '').toLowerCase().trim();
     const co = (c.company || c.name || '').toLowerCase().trim();
     if (nm && nm !== co) {
-      // Person-level sheet entry
-      if (nm && seenCuratedNames.has(nm)) continue;
+      if (seenCuratedNames.has(nm)) continue;
       const personKey = co + '|' + nm;
       if (seenPersons.has(personKey)) continue;
       seenPersons.add(personKey);
       seenCuratedNames.add(nm);
-      merged.push({ ...c, id: merged.length });
+      const idx = merged.length;
+      sheetPersonIdx.set(personKey, idx);
+      merged.push({ ...c, id: idx });
     } else {
-      // Company-level sheet entry
       if (seenCompanies.has(co)) continue;
       seenCompanies.add(co);
       if (c.name) seenCuratedNames.add(nm);
@@ -205,19 +204,19 @@ export async function fetchContacts() {
     }
   }
 
-  // 3. Health event contacts (person-level, curated — higher priority than LinkedIn)
+  // 3. Health event contacts (person-level, curated)
   for (const c of healthContacts) {
     const nm = (c.name || '').toLowerCase().trim();
-    if (nm && seenCuratedNames.has(nm)) continue; // already in curated data
+    if (nm && seenCuratedNames.has(nm)) continue;
     const personKey = ((c.company || '') + '|' + nm).toLowerCase().trim();
     if (!seenPersons.has(personKey)) {
       seenPersons.add(personKey);
-      if (nm) seenCuratedNames.add(nm); // prevent LinkedIn duplicate for same person
+      if (nm) seenCuratedNames.add(nm);
       merged.push({ ...c, id: merged.length });
     }
   }
 
-  // 3b. Dealflow contacts (person-level, curated — higher priority than LinkedIn)
+  // 3b. Dealflow contacts (person-level, curated)
   for (const c of notionContacts) {
     if (c.source !== 'dealflow') continue;
     const nm = (c.name || '').toLowerCase().trim();
@@ -230,12 +229,31 @@ export async function fetchContacts() {
     }
   }
 
-  // 4. LinkedIn contacts (person-level, lowest priority)
+  // 4. LinkedIn contacts (person-level, lowest priority).
+  // When a LinkedIn entry matches a sheet person, supplement any empty fields
+  // (basedIn, contact, website) rather than discarding the LinkedIn data entirely.
   for (const c of notionContacts) {
     if (c.source !== 'linkedin') continue;
     const nm = (c.name || '').toLowerCase().trim();
-    if (nm && seenCuratedNames.has(nm)) continue; // curated/health entry already covers this person
-    const personKey = ((c.company || '') + '|' + nm).toLowerCase().trim();
+    const co = (c.company || '').toLowerCase().trim();
+    const personKey = co + '|' + nm;
+
+    if (nm && seenCuratedNames.has(nm)) {
+      // Person exists from a curated source — supplement empty fields from LinkedIn
+      const idx = sheetPersonIdx.get(personKey);
+      if (idx !== undefined) {
+        const existing = merged[idx];
+        const updates = {};
+        if (!existing.basedIn  && c.basedIn)  updates.basedIn  = c.basedIn;
+        if (!existing.contact  && c.contact)  updates.contact  = c.contact;
+        if (!existing.website  && c.website)  updates.website  = c.website;
+        if (!existing.orgType  && c.orgType)  updates.orgType  = c.orgType;
+        if (!existing.industry && c.industry) updates.industry = c.industry;
+        if (Object.keys(updates).length > 0) merged[idx] = { ...existing, ...updates };
+      }
+      continue;
+    }
+
     if (!seenPersons.has(personKey)) {
       seenPersons.add(personKey);
       merged.push({ ...c, id: merged.length });
