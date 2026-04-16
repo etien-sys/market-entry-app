@@ -4,6 +4,9 @@ const SHEET_URL =
 const HEALTH_SHEET_URL =
   'https://docs.google.com/spreadsheets/d/1HvdzZqgFV-wZLaArg830jjC0jifiwF9NPw5fDSkyEUg/export?format=csv';
 
+const DEEP_TECH_SHEET_URL =
+  'https://docs.google.com/spreadsheets/d/1wmUmrTshMY0fMYIt-YuoPcc3Aijz0eII/export?format=csv';
+
 const ROW_NAME = /^row\s*\d+$/i;
 
 function nameFromWebsite(url) {
@@ -153,12 +156,59 @@ async function fetchHealthEventContacts() {
   }
 }
 
+async function fetchDeepTechEventContacts() {
+  try {
+    const response = await fetch(DEEP_TECH_SHEET_URL);
+    if (!response.ok) return [];
+    const text = await response.text();
+    const lines = text.split('\n').filter((l) => l.trim());
+    if (lines.length < 2) return [];
+    const rawHeaders = parseCSVLine(lines[0]).map((h) => h.toLowerCase().trim());
+    return lines.slice(1).map((line) => {
+      const values = parseCSVLine(line);
+      const row = {};
+      rawHeaders.forEach((h, i) => { row[h] = (values[i] ?? '').trim(); });
+
+      const name = row['event'] || '';
+      if (!name) return null;
+
+      const location = row['location'] || '';
+      const region   = row['region']   || '';
+      const dates    = row['dates']    || '';
+      const link     = row['link']     || '';
+      const focus    = row['focus area'] || '';
+
+      // basedIn: prefer "City, Country" from Location column; fall back to Region
+      const basedIn = location || region;
+      // Derive a country string for location matching — take the part after the last comma
+      const country = location.includes(',') ? location.split(',').pop().trim() : location;
+
+      return {
+        name,
+        role:     '',
+        company:  name,
+        basedIn:  country || region,
+        orgType:  'Event Organizer',
+        industry: focus,
+        website:  link,
+        contact:  '',
+        notes:    [dates && `Dates: ${dates}`, location && `Location: ${location}`].filter(Boolean).join(' · '),
+        tier:     'free',
+        source:   'deep-tech-event',
+      };
+    }).filter(Boolean);
+  } catch (_) {
+    return [];
+  }
+}
+
 export async function fetchContacts() {
   // Fetch all sources in parallel and merge
-  const [sheetContacts, notionContacts, healthContacts] = await Promise.all([
+  const [sheetContacts, notionContacts, healthContacts, deepTechEvents] = await Promise.all([
     fetchSheetContacts(),
     fetchNotionContacts(),
     fetchHealthEventContacts(),
+    fetchDeepTechEventContacts(),
   ]);
 
   const seenCompanies    = new Set();
@@ -204,7 +254,17 @@ export async function fetchContacts() {
     }
   }
 
-  // 3. Health event contacts (person-level, curated)
+  // 3. Deep tech event contacts (event/company-level)
+  for (const c of deepTechEvents) {
+    const key = (c.name || '').toLowerCase().trim();
+    if (!seenCompanies.has(key)) {
+      seenCompanies.add(key);
+      if (c.name) seenCuratedNames.add(key);
+      merged.push({ ...c, id: merged.length });
+    }
+  }
+
+  // 3b. Health event contacts (person-level, curated)
   for (const c of healthContacts) {
     const nm = (c.name || '').toLowerCase().trim();
     if (nm && seenCuratedNames.has(nm)) continue;
@@ -216,7 +276,7 @@ export async function fetchContacts() {
     }
   }
 
-  // 3b. Dealflow contacts (person-level, curated)
+  // 3c. Dealflow contacts (person-level, curated)
   for (const c of notionContacts) {
     if (c.source !== 'dealflow') continue;
     const nm = (c.name || '').toLowerCase().trim();
